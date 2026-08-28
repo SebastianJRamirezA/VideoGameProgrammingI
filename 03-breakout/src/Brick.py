@@ -8,8 +8,9 @@ alejandro.j.mujic4@gmail.com
 This file contains the class Brick.
 """
 
-import pygame
+from typing import Optional
 
+import pygame
 
 from gale.particle_system import ParticleSystem
 
@@ -50,7 +51,7 @@ class Brick:
         self.particle_system.set_linear_acceleration(-0.3, 0.5, 0.3, 1)
         self.particle_system.set_area_spread(4, 7)
 
-    def hit(self) -> None:
+    def hit(self, instant_destroy: Optional[bool] = False) -> None:
         settings.SOUNDS["brick_hit_2"].stop()
         settings.SOUNDS["brick_hit_2"].play()
 
@@ -58,16 +59,19 @@ class Brick:
         self.particle_system.set_colors([(r, g, b, 10), (r, g, b, 50)])
         self.particle_system.generate()
 
-        if self.tier == 0:
-            if self.color == 0:
-                self.broken = True
-                settings.SOUNDS["brick_hit_1"].stop()
-                settings.SOUNDS["brick_hit_1"].play()
-            else:
-                self.tier = 3
-                self.color -= 1
+        if instant_destroy:
+            self.broken = True
         else:
-            self.tier -= 1
+            if self.tier == 0:
+                if self.color == 0:
+                    self.broken = True
+                    settings.SOUNDS["brick_hit_1"].stop()
+                    settings.SOUNDS["brick_hit_1"].play()
+                else:
+                    self.tier = 3
+                    self.color -= 1
+            else:
+                self.tier -= 1
 
     def score(self):
         return self.tier * 200 + (self.color + 1) * 25

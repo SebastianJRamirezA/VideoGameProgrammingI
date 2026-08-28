@@ -36,6 +36,14 @@ class PlayState(BaseState):
             + settings.PADDLE_GROW_UP_POINTS * (self.paddle.size + 1) * self.level
         )
         self.powerups = params.get("powerups", [])
+        self.cannon_powerup = next(
+            (
+                powerup
+                for powerup in self.powerups
+                if getattr(powerup, "mounted", False)
+            ),
+            None,
+        )
 
         if not params.get("resume", False):
             self.balls[0].vx = random.randint(-80, 80)
@@ -48,15 +56,31 @@ class PlayState(BaseState):
         self.paddle.update(dt)
 
         for ball in self.balls:
+            if getattr(ball, "is_explosive", False):
+                ball.explosive_time_remaining -= dt
+                if ball.explosive_time_remaining <= 0:
+                    ball.is_explosive = False
+
+            if ball.stuck:
+                ball.x = self.paddle.x + ball.stuck_offset_x
+                ball.y = self.paddle.y - ball.height
+                continue
+
             ball.update(dt)
             ball.solve_world_boundaries()
 
-            # Check collision with the paddle
-            if ball.collides(self.paddle):
+            if not ball.is_cannon_ball and ball.collides(self.paddle):
                 settings.SOUNDS["paddle_hit"].stop()
                 settings.SOUNDS["paddle_hit"].play()
-                ball.rebound(self.paddle)
-                ball.push(self.paddle)
+                if self.paddle.sticky:
+                    ball.stuck = True
+                    ball.stuck_offset_x = ball.x - self.paddle.x
+                    ball.vx = 0
+                    ball.vy = 0
+                    ball.y = self.paddle.y - ball.height
+                else:
+                    ball.rebound(self.paddle)
+                    ball.push(self.paddle)
 
             # Check collision with brickset
             if not ball.collides(self.brickset):
@@ -67,9 +91,14 @@ class PlayState(BaseState):
             if brick is None:
                 continue
 
-            brick.hit()
-            self.score += brick.score()
-            ball.rebound(brick)
+            if getattr(ball, "is_explosive", False):
+                self.score += self.brickset.explode(brick)
+            else:
+                brick.hit(ball.is_cannon_ball)
+                self.score += brick.score()
+
+            if not ball.is_cannon_ball:
+                ball.rebound(brick)
 
             # Check earn life
             if self.score >= self.points_to_next_live:
@@ -86,11 +115,14 @@ class PlayState(BaseState):
                 )
                 self.paddle.inc_size()
 
-            # Chance to generate two more balls
+            # Chance to generate a powerup
             if random.random() < 0.1:
                 r = brick.get_collision_rect()
+                powerup_name = random.choice(
+                    ("TwoMoreBall", "StickyPaddle", "Cannons", "ExplosiveBall")
+                )
                 self.powerups.append(
-                    self.powerups_abstract_factory.get_factory("TwoMoreBall").create(
+                    self.powerups_abstract_factory.get_factory(powerup_name).create(
                         r.centerx - 8, r.centery - 8
                     )
                 )
@@ -102,6 +134,8 @@ class PlayState(BaseState):
 
         if not self.balls:
             self.lives -= 1
+            self.paddle.sticky = False
+            self.paddle.sticky_time_remaining = 0.0
             if self.lives == 0:
                 self.state_machine.change("game_over", score=self.score)
             else:
@@ -182,7 +216,19 @@ class PlayState(BaseState):
             powerup.render(surface)
 
     def on_input(self, input_id: str, input_data: InputData) -> None:
-        if input_id == "move_left":
+        if input_id == "enter" and input_data.pressed:
+            if self.paddle.sticky:
+                for ball in self.balls:
+                    if ball.stuck:
+                        ball.stuck = False
+                        ball.vx = random.randint(-80, 80)
+                        ball.vy = random.randint(-170, -100)
+                        settings.SOUNDS["paddle_hit"].play()
+                        break
+        elif input_id == "fire" and input_data.pressed:
+            if self.cannon_powerup is not None:
+                self.cannon_powerup.fire(self)"
+        elif input_id == "move_left":
             if input_data.pressed:
                 self.paddle.vx = -settings.PADDLE_SPEED
             elif input_data.released and self.paddle.vx < 0:
