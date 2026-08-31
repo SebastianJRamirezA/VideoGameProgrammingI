@@ -110,7 +110,10 @@ class PlayState(BaseState):
             self._start_level_transition()
 
         self.camera.update(dt)
-        self.game_level.update(dt)
+        self.game_level.update(dt, self.player)
+
+        if self.game_level.level_completed:
+            return
 
         for creature in self.game_level.creatures:
             if self.player.collides(creature):

@@ -26,23 +26,25 @@ from src.definitions import creatures, items
 
 class GameLevel:
     def __init__(self, num_level: int) -> None:
+        self.num_level = num_level
         self.tilemap = load_tiled_map(settings.TILEMAPS[num_level])
         self.creatures = []
         self.items = []
         self.level_completed = False
         self.special_block = None
         self.key = None
+        self.goal_score = getattr(settings, "TARGET_SCORE", 100)
 
-        # for obj in self.tilemap.object_layers.get("creatures", []):
-        #     self.add_creature(
-        #         {
-        #             "tile_index": obj.properties["tile_index"],
-        #             "x": obj.x,
-        #             "y": obj.y,
-        #             "width": obj.width,
-        #             "height": obj.height,
-        #         }
-        #     )
+        for obj in self.tilemap.object_layers.get("creatures", []):
+            self.add_creature(
+                {
+                    "tile_index": obj.properties["tile_index"],
+                    "x": obj.x,
+                    "y": obj.y,
+                    "width": obj.width,
+                    "height": obj.height,
+                }
+            )
 
         for obj in self.tilemap.object_layers.get("coins", []):
             self.add_item(
@@ -56,16 +58,25 @@ class GameLevel:
                 }
             )
 
-        block_positions = {1: (720, 16),
-                           #2: (720, 16)  # Uncomment this line if you want to set a position for level 2
-                           }
-        if num_level in block_positions:
+        self._schedule_flying_creature_spawn()
+
+    def _spawn_special_block(self) -> None:
+        if self.special_block is not None or self.level_completed:
+            return
+
+        block_positions = {
+            1: (720, 16),
+            # 2: (720, 16),
+        }
+
+        if self.num_level in block_positions:
+            position = block_positions[self.num_level]
             self.special_block = self.add_item(
                 {
                     "item_name": "special_block",
                     "frame_index": 50,
-                    "x": block_positions[num_level][0],
-                    "y": block_positions[num_level][1],
+                    "x": position[0],
+                    "y": position[1],
                     "width": 16,
                     "height": 16,
                 }
@@ -81,8 +92,6 @@ class GameLevel:
                 }
             )
             self.key.active = False
-            
-        self._schedule_flying_creature_spawn()
 
     def add_item(self, item_data: Dict[str, Any]) -> None:
         item_name = item_data.pop("item_name")
@@ -107,7 +116,15 @@ class GameLevel:
         return item
 
     def finish_level(self) -> None:
+        if self.level_completed:
+            return
+
         self.level_completed = True
+        Timer.pause()
+        sounds = getattr(settings, "SOUNDS", {})
+        if "count" in sounds:
+            sounds["count"].stop()
+            sounds["count"].play()
 
     def spawn_key_from_special_block(self, block: GameItem) -> None:
         if self.key is None or self.key.active:
@@ -186,7 +203,11 @@ class GameLevel:
     def get_rect(self) -> pygame.Rect:
         return pygame.Rect(0, 0, self.tilemap.pixel_width, self.tilemap.pixel_height)
 
-    def update(self, dt: float) -> None:
+    def update(self, dt: float, player: Optional[Any] = None) -> None:
+        if player is not None and not self.level_completed:
+            if self.special_block is None and player.score >= self.goal_score:
+                self._spawn_special_block()
+
         for creature in self.creatures:
             creature.update(dt)
 
