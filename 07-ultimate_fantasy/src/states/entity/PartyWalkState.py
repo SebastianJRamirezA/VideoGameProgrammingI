@@ -52,9 +52,9 @@ class PartyWalkState(PartyBaseState):
         if not (1 <= to_x <= region.tile_width and 1 <= to_y <= region.tile_height):
             return False
 
-        tile = region.grass_layer.tiles[to_y - 1][to_x - 1]
+        gid = region.tilemap.get_gid("grass", to_y - 1, to_x - 1)
 
-        if tile.id != settings.TILE_IDS["tall-grass"]:
+        if gid != settings.TILE_IDS["tall-grass"]:
             return False
 
         if random.randint(1, 10) != 1:
@@ -165,8 +165,8 @@ class PartyWalkState(PartyBaseState):
             party.world.move("down")
             return
 
-        fence = party.world.current_region().fence_layer
-        if fence.tiles[to_y - 1][to_x - 1].id != settings.TILE_IDS["empty"]:
+        region = party.world.current_region()
+        if region.tilemap.get_gid("fence", to_y - 1, to_x - 1) != settings.TILE_IDS["empty"]:
             party.change_state("idle")
             return
 

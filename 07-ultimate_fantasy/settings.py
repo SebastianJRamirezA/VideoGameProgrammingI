@@ -16,6 +16,7 @@ import pygame
 
 from gale import frames
 from gale import input_handler
+from gale import tilemap
 
 input_handler.InputHandler.set_keyboard_action(input_handler.KEY_ESCAPE, "quit")
 input_handler.InputHandler.set_keyboard_action(input_handler.KEY_LEFT, "move_left")
@@ -121,8 +122,13 @@ TEXTURES = {
     ),
 }
 
+# Shared by every gale.tilemap.TileMap in the game (world regions and
+# battle backgrounds alike): tile ids in TILE_IDS above are 1-based,
+# matching this tileset's default first_gid, so they double as gids
+# with no remapping.
+TILESET = tilemap.Tileset(TEXTURES["tiles"], TILE_SIZE, TILE_SIZE)
+
 FRAMES = {
-    "tiles": frames.generate_frames(TEXTURES["tiles"], 16, 16),
     "healer-female": frames.generate_frames(TEXTURES["healer-female"], 16, 18),
     "healer-male": frames.generate_frames(TEXTURES["healer-male"], 16, 18),
     "mage-female": frames.generate_frames(TEXTURES["mage-female"], 16, 18),
