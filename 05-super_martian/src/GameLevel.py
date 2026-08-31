@@ -29,17 +29,20 @@ class GameLevel:
         self.tilemap = load_tiled_map(settings.TILEMAPS[num_level])
         self.creatures = []
         self.items = []
+        self.level_completed = False
+        self.special_block = None
+        self.key = None
 
-        for obj in self.tilemap.object_layers.get("creatures", []):
-            self.add_creature(
-                {
-                    "tile_index": obj.properties["tile_index"],
-                    "x": obj.x,
-                    "y": obj.y,
-                    "width": obj.width,
-                    "height": obj.height,
-                }
-            )
+        # for obj in self.tilemap.object_layers.get("creatures", []):
+        #     self.add_creature(
+        #         {
+        #             "tile_index": obj.properties["tile_index"],
+        #             "x": obj.x,
+        #             "y": obj.y,
+        #             "width": obj.width,
+        #             "height": obj.height,
+        #         }
+        #     )
 
         for obj in self.tilemap.object_layers.get("coins", []):
             self.add_item(
@@ -53,13 +56,71 @@ class GameLevel:
                 }
             )
 
+        block_positions = {1: (720, 16),
+                           #2: (720, 16)  # Uncomment this line if you want to set a position for level 2
+                           }
+        if num_level in block_positions:
+            self.special_block = self.add_item(
+                {
+                    "item_name": "special_block",
+                    "frame_index": 50,
+                    "x": block_positions[num_level][0],
+                    "y": block_positions[num_level][1],
+                    "width": 16,
+                    "height": 16,
+                }
+            )
+            self.key = self.add_item(
+                {
+                    "item_name": "key",
+                    "frame_index": 64,
+                    "x": self.special_block.x,
+                    "y": self.special_block.y,
+                    "width": 8,
+                    "height": 16,
+                }
+            )
+            self.key.active = False
+            
         self._schedule_flying_creature_spawn()
 
     def add_item(self, item_data: Dict[str, Any]) -> None:
         item_name = item_data.pop("item_name")
-        definition = items.ITEMS[item_name][item_data["frame_index"]]
+        frame_index = item_data.get("frame_index")
+        item_defs = items.ITEMS.get(item_name, {})
+
+        if frame_index not in item_defs:
+            fallback_frame = next(iter(item_defs), 0)
+            if fallback_frame == 0 and item_name in {"special_block", "key"}:
+                item_data["frame_index"] = 0
+            else:
+                item_data["frame_index"] = fallback_frame
+        else:
+            item_data["frame_index"] = frame_index
+
+        definition = item_defs[item_data["frame_index"]]
         definition.update(item_data)
-        self.items.append(GameItem(**definition))
+        item = GameItem(**definition)
+        item.item_name = item_name
+        item.game_level = self
+        self.items.append(item)
+        return item
+
+    def finish_level(self) -> None:
+        self.level_completed = True
+
+    def spawn_key_from_special_block(self, block: GameItem) -> None:
+        if self.key is None or self.key.active:
+            return
+
+        self.key.x = block.x
+        self.key.y = block.y - 12
+        self.key.active = True
+        Timer.tween(
+            0.35,
+            [(self.key, {"y": block.y})],
+            ease_function_name="out_back",
+        )
 
     def add_creature(self, creature_data: Dict[str, Any]) -> None:
         definition = creatures.CREATURES[creature_data["tile_index"]]

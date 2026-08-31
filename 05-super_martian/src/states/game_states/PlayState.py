@@ -28,6 +28,10 @@ class PlayState(BaseState):
     def enter(self, **enter_params: Dict[str, Any]) -> None:
         self.level = enter_params.get("level", 1)
         self.game_level = enter_params.get("game_level")
+        self.transitioning = False
+        self.transition_alpha = 255
+        Timer.clear()
+
         if self.game_level is None:
             self.game_level = GameLevel(self.level)
             pygame.mixer.music.load(
@@ -74,6 +78,22 @@ class PlayState(BaseState):
         else:
             Timer.resume()
 
+        Timer.tween(0.4, [(self, {"transition_alpha": 0})], ease_function_name="out_cubic")
+
+    def _start_level_transition(self) -> None:
+        if self.transitioning:
+            return
+
+        self.transitioning = True
+        self.transition_alpha = 0
+        next_level = self.level + 1 if self.level < settings.NUM_LEVELS else 1
+        Timer.tween(
+            0.5,
+            [(self, {"transition_alpha": 255})],
+            ease_function_name="in_cubic",
+            on_finish=lambda: self.state_machine.change("play", level=next_level),
+        )
+
     def update(self, dt: float) -> None:
         if self.player.is_dead:
             pygame.mixer.music.stop()
@@ -85,6 +105,9 @@ class PlayState(BaseState):
 
         if self.player.y >= self.tilemap.pixel_height:
             self.player.change_state("dead")
+
+        if self.game_level.level_completed and not self.transitioning:
+            self._start_level_transition()
 
         self.camera.update(dt)
         self.game_level.update(dt)
@@ -124,6 +147,14 @@ class PlayState(BaseState):
             (255, 255, 255),
             shadowed=True,
         )
+
+        if self.transition_alpha > 0:
+            overlay = pygame.Surface(
+                (settings.VIRTUAL_WIDTH, settings.VIRTUAL_HEIGHT),
+                pygame.SRCALPHA,
+            )
+            overlay.fill((0, 0, 0, int(self.transition_alpha)))
+            surface.blit(overlay, (0, 0))
 
     def on_input(self, input_id: str, input_data: InputData) -> None:
         if input_id == "pause" and input_data.pressed:
