@@ -66,6 +66,9 @@ class PlayState(BaseState):
             self.clock = Clock(30)
 
             def countdown_timer():
+                if self.game_level.level_completed:
+                    return
+
                 self.clock.count_down()
 
                 if 0 < self.clock.time <= 5:

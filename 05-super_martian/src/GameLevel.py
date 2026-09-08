@@ -120,7 +120,6 @@ class GameLevel:
             return
 
         self.level_completed = True
-        Timer.pause()
         sounds = getattr(settings, "SOUNDS", {})
         if "count" in sounds:
             sounds["count"].stop()
