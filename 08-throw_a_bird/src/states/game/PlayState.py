@@ -68,6 +68,7 @@ MAX_PULL_DISTANCE = 150
 # back to the average of the two, 13.25, per feedback that 16.0 then felt
 # too strong.
 FLING_IMPULSE_SCALE = 13.25
+SPLIT_ANGLE = 18
 
 # A shot is considered "settled" once the bird's linear/angular velocity
 # has been below these thresholds for IDLE_FRAMES_LIMIT consecutive
@@ -84,7 +85,7 @@ CAMERA_ZOOM_MIN = 1.0
 CAMERA_ZOOM_MAX = 1.5
 CAMERA_PAN_MARGIN = 300
 
-HUD_TEXT = "Drag the bird to aim and release to fling. Drag elsewhere to pan."
+HUD_TEXT = "Drag the bird to aim and release to fling. Space splits the bird."
 
 
 class PlayState(BaseState):
@@ -93,6 +94,7 @@ class PlayState(BaseState):
 
         self.level = Level(self.world)
         self.bird = Bird(self.world, self.level.bird_start.x, self.level.bird_start.y)
+        self.birds = [self.bird]
 
         self.camera = Camera(settings.VIRTUAL_WIDTH, settings.VIRTUAL_HEIGHT)
         self.camera.x, self.camera.y = self.bird.position
@@ -107,6 +109,7 @@ class PlayState(BaseState):
         self.aiming = False
         self.panning = False
         self.flinging = False
+        self.split_used = False
         self.idle_frames = 0
 
         self.pressed_position = pygame.Vector2()
@@ -129,6 +132,7 @@ class PlayState(BaseState):
             return
 
         if self.flinging:
+            self._update_bird_collisions()
             self.camera_target.update(self.bird.position)
             self._update_idle()
         elif self.aiming:
@@ -157,19 +161,24 @@ class PlayState(BaseState):
         self.bird.body.angular_velocity = 0.0
 
     def _update_idle(self) -> None:
-        linear_speed = self.bird.body.velocity.length()
-        angular_speed = abs(self.bird.body.angular_velocity)
+        all_birds_idle = all(
+            bird.body.velocity.length() < IDLE_LINEAR_SPEED_THRESHOLD
+            and abs(bird.body.angular_velocity) < IDLE_ANGULAR_SPEED_THRESHOLD
+            for bird in self.birds
+        )
 
-        if (
-            linear_speed < IDLE_LINEAR_SPEED_THRESHOLD
-            and angular_speed < IDLE_ANGULAR_SPEED_THRESHOLD
-        ):
+        if all_birds_idle:
             self.idle_frames += 1
 
             if self.idle_frames > IDLE_FRAMES_LIMIT:
                 self.flinging = False
                 self.idle_frames = 0
-                self.bird.reset()
+                for bird in self.birds:
+                    bird.reset()
+                for bird in self.birds[1:]:
+                    self.world.destroy_body(bird.body)
+                self.birds = [self.bird]
+                self.split_used = False
                 self.camera_target.update(self.bird.position)
         else:
             self.idle_frames = 0
@@ -187,7 +196,8 @@ class PlayState(BaseState):
     def render(self, surface: pygame.Surface) -> None:
         surface.fill(settings.BG_COLOR)
         self.level.render(surface, self.camera)
-        self.bird.render(surface, self.camera)
+        for bird in self.birds:
+            bird.render(surface, self.camera)
 
         if self.aiming:
             self._render_pull_line(surface)
@@ -200,7 +210,9 @@ class PlayState(BaseState):
         pygame.draw.line(surface, (110, 75, 40), start, end, 3)
 
     def on_input(self, input_id: str, input_data: InputData) -> None:
-        if input_id == "touch":
+        if input_id == "split" and input_data.pressed:
+            self._split_birds()
+        elif input_id == "touch":
             self._on_touch(input_data)
         elif input_id == "touch_motion":
             self._on_touch_motion(input_data)
@@ -238,12 +250,44 @@ class PlayState(BaseState):
         if pull.length() < 5:
             self.bird.reset()
             return
+        self.bird.collided = False
         # Scaled by the bird's own mass so it cancels out of the
         # resulting delta-v -- see the FLING_IMPULSE_SCALE docstring.
         scale = FLING_IMPULSE_SCALE * self.bird.mass
         self.bird.body.apply_impulse(pull.x * scale, pull.y * scale)
         self.flinging = True
         self.idle_frames = 0
+
+    def _update_bird_collisions(self) -> None:
+        for bird in self.birds:
+            if not bird.has_scene_collision():
+                continue
+            bird.collided = True
+
+    def _split_birds(self) -> None:
+        if not self.flinging or self.split_used:
+            return
+
+        self._update_bird_collisions()
+        if self.bird.collided:
+            return
+
+        velocity = pygame.Vector2(self.bird.body.velocity)
+        direction = velocity.normalize() if velocity.length() else pygame.Vector2(1, 0)
+        perpendicular = pygame.Vector2(-direction.y, direction.x)
+        offset = perpendicular * (self.bird.radius * 1.05)
+
+        for angle, position_offset in ((SPLIT_ANGLE, offset), (-SPLIT_ANGLE, -offset)):
+            bird = Bird(
+                self.world,
+                self.bird.position.x + position_offset.x,
+                self.bird.position.y + position_offset.y,
+            )
+            bird.body.velocity = velocity.rotate(angle)
+            bird.body.angular_velocity = self.bird.body.angular_velocity
+            self.birds.append(bird)
+
+        self.split_used = True
 
     def _on_touch_motion(self, input_data: InputData) -> None:
         if not (self.aiming or self.panning):
