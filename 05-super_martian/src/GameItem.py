@@ -10,6 +10,8 @@ This file contains the class GameItem.
 
 from typing import Callable, TypeVar, Any, Optional
 
+import pygame
+
 from src import mixins
 
 
@@ -39,6 +41,8 @@ class GameItem(mixins.DrawableMixin, mixins.CollidableMixin):
         self._on_collide = on_collide
         self._on_consume = on_consume
         self.active = True
+        self.item_name = ""
+        self.game_level = None
 
     def respawn(self, x: Optional[float] = None, y: Optional[float] = None) -> None:
         if x is not None:
@@ -57,3 +61,6 @@ class GameItem(mixins.DrawableMixin, mixins.CollidableMixin):
             return None
         self.active = False
         return self._on_consume(self, consumer)
+
+    def render(self, surface: pygame.Surface, camera: Any) -> None:
+        super().render(surface, camera)
