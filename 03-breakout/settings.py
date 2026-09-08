@@ -31,6 +31,7 @@ input_handler.InputHandler.set_keyboard_action(input_handler.KEY_RIGHT, "move_ri
 input_handler.InputHandler.set_keyboard_action(input_handler.KEY_DOWN, "move_down")
 input_handler.InputHandler.set_keyboard_action(input_handler.KEY_LEFT, "move_left")
 input_handler.InputHandler.set_keyboard_action(input_handler.KEY_SPACE, "pause")
+input_handler.InputHandler.set_keyboard_action(input_handler.KEY_F, "fire")
 
 TITLE = "Breakout"
 
@@ -52,6 +53,8 @@ LIVE_POINTS_BASE = 2000
 PADDLE_GROW_UP_POINTS = 200
 
 POWERUP_SPEED = 50
+STICKY_PADDLE_DURATION = 15.0
+EXPLOSIVE_BALL_DURATION = 10.0
 
 BASE_DIR = Path(__file__).parent
 
@@ -82,7 +85,10 @@ TEXTURES = {
     "spritesheet": pygame.image.load(BASE_DIR / "assets" / "graphics" / "breakout.png"),
     "hearts": pygame.image.load(BASE_DIR / "assets" / "graphics" / "hearts.png"),
     "arrows": pygame.image.load(BASE_DIR / "assets" / "graphics" / "arrows.png"),
+    "cannon": pygame.image.load(BASE_DIR / "assets" / "graphics" / "cannon.png"),
 }
+
+TEXTURES["cannon"].set_colorkey((0, 0, 0))
 
 FRAMES = {
     "paddles": generate_paddle_frames(),
