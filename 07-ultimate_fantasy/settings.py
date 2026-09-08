@@ -27,14 +27,21 @@ input_handler.InputHandler.set_keyboard_action(input_handler.KEY_SPACE, "space")
 input_handler.InputHandler.set_keyboard_action(input_handler.KEY_RETURN, "enter")
 input_handler.InputHandler.set_keyboard_action(input_handler.KEY_KP_ENTER, "enter")
 input_handler.InputHandler.set_keyboard_action(input_handler.KEY_p, "pause")
-input_handler.InputHandler.set_keyboard_action(input_handler.KEY_c, "continue")
 
 TITLE = "Ultimate Fantasy"
 
-# gale.save.SaveManager slot used for this game's single save file.
-SAVE_SLOT = "slot1"
+# gale.save.SaveManager slot names available for this game's 3 save slots
+# (StartState/PauseMenuState's "Load game", PauseMenuState's "Save
+# game" -- see SlotSelectState).
+SAVE_SLOTS = ["slot1", "slot2", "slot3"]
 
 BASE_DIR = pathlib.Path(__file__).parent
+
+# Absolute, so saves always land next to this game regardless of the
+# working directory the game happens to be launched from -- gale.save's
+# own default ("saves") is a relative path resolved against the
+# process's cwd, not this file's location.
+SAVE_DIR = BASE_DIR / "saves"
 
 VIRTUAL_WIDTH = 384
 VIRTUAL_HEIGHT = 224

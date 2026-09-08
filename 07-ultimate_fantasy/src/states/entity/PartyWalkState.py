@@ -22,9 +22,7 @@ from src.states.entity.PartyBaseState import PartyBaseState
 class PartyWalkState(PartyBaseState):
     def enter(self, direction: str) -> None:
         self.direction = direction
-
-        if not self._check_for_encounter():
-            self._attempt_move()
+        self._attempt_move()
 
     @staticmethod
     def _delta(direction: str) -> Tuple[int, int]:
@@ -38,21 +36,23 @@ class PartyWalkState(PartyBaseState):
             return 0, 1
 
     def _check_for_encounter(self) -> bool:
+        """Rolls for a random encounter on the leader's OWN current tile --
+        called once the step that brought them there has actually finished
+        (see _on_step_finished), not before it even starts. Checking the
+        upcoming destination tile before moving (the original code here)
+        could fire a battle while the leader was still visibly standing on
+        the previous, non-grass tile -- the step into the grass itself
+        never actually plays before the screen fades to battle. Checking
+        the tile the leader has actually landed on instead means a battle
+        never starts until they're really standing in the tall grass."""
         party = self.party
         leader = party.first_alive()
 
         if leader is None:
             return False
 
-        dx, dy = self._delta(self.direction)
-        to_x, to_y = leader.map_x + dx, leader.map_y + dy
-
         region = party.world.current_region()
-
-        if not (1 <= to_x <= region.tile_width and 1 <= to_y <= region.tile_height):
-            return False
-
-        gid = region.tilemap.get_gid("grass", to_y - 1, to_x - 1)
+        gid = region.tilemap.get_gid("grass", leader.map_y - 1, leader.map_x - 1)
 
         if gid != settings.TILE_IDS["tall-grass"]:
             return False
@@ -204,6 +204,9 @@ class PartyWalkState(PartyBaseState):
             last_tween.finish(self._on_step_finished)
 
     def _on_step_finished(self) -> None:
+        if self._check_for_encounter():
+            return
+
         held = self.party.held
 
         if held["move_left"]:

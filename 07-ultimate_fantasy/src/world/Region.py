@@ -40,6 +40,19 @@ class Region:
         self.is_town: bool = definition.get("is_town", False)
         self.num_npcs: int = random.randint(2, 4) if self.is_town else 0
         self.npcs = []
+        # Own copies, popped from in _create_npc to avoid repeating a name
+        # within this one region -- ENTITY_DEFS["npcs"][gender]["names"]
+        # itself must never be mutated directly: it's a single shared list
+        # for the whole process, so popping it there would permanently
+        # shrink it every time ANY Region is ever created, eventually
+        # raising "empty range for randrange()" once enough of them (e.g.
+        # loading a different save mid-game, which builds a whole new
+        # World/town Region on top of whichever one(s) came before it)
+        # had already drained it.
+        self._available_npc_names = {
+            gender: list(ENTITY_DEFS["npcs"][gender]["names"])
+            for gender in ("male", "female")
+        }
 
         self.tilemap = TileMap(
             settings.TILE_SIZE, settings.TILE_SIZE, self.tile_width, self.tile_height
@@ -165,7 +178,7 @@ class Region:
 
         gender = "male" if random.random() < 0.5 else "female"
 
-        names = ENTITY_DEFS["npcs"][gender]["names"]
+        names = self._available_npc_names[gender]
         name = names.pop(random.randrange(len(names)))
 
         npc = NPC(
