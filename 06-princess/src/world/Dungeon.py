@@ -27,9 +27,10 @@ class Dungeon:
     ) -> None:
         self.player = player
         self.on_game_over = on_game_over
+        self.chest_available = True
 
         # Current room we're operating in.
-        self.current_room = Room(self.player, self.on_game_over)
+        self.current_room = Room(self.player, self.on_game_over, self)
 
         # Room we're moving the camera to during a shift; becomes the
         # active room afterwards.
@@ -47,7 +48,7 @@ class Dungeon:
         PlayerWalkState/PlayerPotWalkState.
         """
         self.shifting = True
-        self.next_room = Room(self.player, self.on_game_over)
+        self.next_room = Room(self.player, self.on_game_over, self)
 
         # Start all doors in next room as open until we get in.
         for doorway in self.next_room.doorways:

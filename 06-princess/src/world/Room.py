@@ -84,6 +84,7 @@ class Room:
         self,
         player: TypeVar("Player"),
         on_game_over: Callable[[], None],
+        dungeon: Any = None,
     ) -> None:
         # Reference to player for collisions, etc.
         self.player = player
@@ -100,7 +101,7 @@ class Room:
         self._generate_entities()
 
         self.objects: List[GameObject] = []
-        self._generate_objects()
+        self._generate_objects(dungeon)
 
         # Doorways that lead to other dungeon rooms.
         self.doorways = [
@@ -234,23 +235,51 @@ class Room:
         player_row = int((player_y + player_height / 2) // settings.TILE_SIZE)
 
         for obj in self.objects:
+            if obj.type == "chest" and obj.state == "closed" and self._is_adjacent(player, obj):
+                obj.state = "opening"
+                obj.animation_index = 0
+                obj.animation_timer = 0.0
+                obj.solid = False
+                player.obtain_bow()
+                return
+
+            if player.has_bow:
+                return
+
             if not obj.takeable:
                 continue
 
             obj_col = int((obj.x + obj.width / 2) // settings.TILE_SIZE)
             obj_row = int((obj.y + obj.height / 2) // settings.TILE_SIZE)
 
-            adjacent = (
-                (player.direction == "right" and obj_row == player_row and obj_col == player_col + 1)
-                or (player.direction == "left" and obj_row == player_row and obj_col == player_col - 1)
-                or (player.direction == "up" and obj_col == player_col and obj_row == player_row - 1)
-                or (player.direction == "down" and obj_col == player_col and obj_row == player_row + 1)
-            )
+            adjacent = self._is_adjacent(player, obj, player_col, player_row, obj_col, obj_row)
 
             if adjacent:
                 self.objects.remove(obj)
                 player.change_state("pot-lift", pot=obj)
                 return
+
+    @staticmethod
+    def _is_adjacent(
+        player: TypeVar("Player"),
+        obj: GameObject,
+        player_col: Optional[int] = None,
+        player_row: Optional[int] = None,
+        obj_col: Optional[int] = None,
+        obj_row: Optional[int] = None,
+    ) -> bool:
+        if player_col is None:
+            player_col = int((player.x + player.width / 2) // settings.TILE_SIZE)
+            player_row = int((player.y + player.height / 2) // settings.TILE_SIZE)
+            obj_col = int((obj.x + obj.width / 2) // settings.TILE_SIZE)
+            obj_row = int((obj.y + obj.height / 2) // settings.TILE_SIZE)
+
+        return (
+            (player.direction == "right" and obj_row == player_row and obj_col == player_col + 1)
+            or (player.direction == "left" and obj_row == player_row and obj_col == player_col - 1)
+            or (player.direction == "up" and obj_col == player_col and obj_row == player_row - 1)
+            or (player.direction == "down" and obj_col == player_col and obj_row == player_row + 1)
+        )
 
     def _generate_walls_and_floors(self) -> None:
         """
@@ -315,7 +344,7 @@ class Room:
             entity.change_state("walk")
             self.entities.append(entity)
 
-    def _generate_objects(self) -> None:
+    def _generate_objects(self, dungeon: Any = None) -> None:
         """Randomly creates an assortment of obstacles for the player to navigate around."""
         switch = GameObject(
             GAME_OBJECT_DEFS["switch"],
@@ -332,6 +361,15 @@ class Room:
             ),
         )
         self.objects.append(switch)
+
+        if dungeon is not None and dungeon.chest_available:
+            chest = GameObject(
+                GAME_OBJECT_DEFS["chest"],
+                random.randint(2, self.width - 2) * settings.TILE_SIZE,
+                random.randint(2, self.height - 2) * settings.TILE_SIZE,
+            )
+            self.objects.append(chest)
+            dungeon.chest_available = False
 
         def open_all_doors() -> None:
             if switch.state == "unpressed":

@@ -26,6 +26,7 @@ from src.commands import (
     SWORD,
 )
 from src.Entity import Entity
+from src.Bow import Bow
 
 
 class Player(Entity):
@@ -37,6 +38,7 @@ class Player(Entity):
         # the same way jump_requested works in 05-super_martian.
         self.sword_requested = False
         self.interact_requested = False
+        self.bow = None
 
         self.command_bindings = CommandBindings()
         self.command_bindings.bind("move_left", press=MOVE_LEFT, release=STOP_MOVE_LEFT)
@@ -66,3 +68,22 @@ class Player(Entity):
 
     def on_input(self, input_id: str, input_data: InputData) -> None:
         self.command_bindings.dispatch(self, input_id, input_data)
+
+    def update(self, dt: float) -> None:
+        super().update(dt)
+        if self.bow is not None:
+            self.bow.update(dt)
+
+    def render_sprite(
+        self, surface, texture_id: str, frame_index: int
+    ) -> None:
+        if self.bow is not None:
+            self.bow.render(surface)
+        super().render_sprite(surface, texture_id, frame_index)
+
+    @property
+    def has_bow(self) -> bool:
+        return self.bow is not None
+
+    def obtain_bow(self) -> None:
+        self.bow = Bow(self)

@@ -46,6 +46,39 @@ GAME_OBJECT_DEFS: Dict[str, Dict[str, Any]] = {
             "default": {"frame": 16},
         },
     },
+    "chest": {
+        "type": "chest",
+        "texture": "chests",
+        "frame": 1,
+        "width": 18,
+        "height": 20,
+        "solid": True,
+        "consumable": False,
+        "default_state": "closed",
+        "states": {
+            "closed": {"frame": 1},
+            "opening": {"frame": 1},
+            "open": {"frame": 28},
+        },
+        "animation_frames": {
+            "opening": {
+                "frames": [1, 10, 19, 28],
+                "interval": 0.1,
+                "finished_state": "open",
+            },
+        },
+    },
+    "arrow": {
+        "type": "arrow",
+        "texture": "bow_arrows",
+        "frame": 3,
+        "width": 16,
+        "height": 16,
+        "solid": False,
+        "consumable": False,
+        "default_state": "default",
+        "states": {"default": {}},
+    },
     # Definition of heart as a consumable object type.
     "heart": {
         "type": "heart",
