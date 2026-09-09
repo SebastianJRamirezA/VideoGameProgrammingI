@@ -42,7 +42,7 @@ class ArrowFactory:
             arrow.x = player.x + player.width
             arrow.y = player.y + player.height / 2 - arrow.height / 2
 
-        return Projectile(arrow, direction)
+        return Projectile(arrow, direction, owner=player, kind="arrow")
 
 
 class Bow:

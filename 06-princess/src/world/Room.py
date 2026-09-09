@@ -22,6 +22,7 @@ from src.Entity import Entity
 from src.GameObject import GameObject
 from src.states.entity.EntityIdleState import EntityIdleState
 from src.states.entity.EntityWalkState import EntityWalkState
+from src.states.entity.BossState import BossState
 from src.world.Doorway import Doorway
 
 _ENEMY_TYPES = ["skeleton", "slime", "bat", "ghost", "spider"]
@@ -85,10 +86,14 @@ class Room:
         player: TypeVar("Player"),
         on_game_over: Callable[[], None],
         dungeon: Any = None,
+        is_boss_room: bool = False,
+        entrance_direction: Optional[str] = None,
     ) -> None:
         # Reference to player for collisions, etc.
         self.player = player
         self.on_game_over = on_game_over
+        self.is_boss_room = is_boss_room
+        self.entrance_direction = entrance_direction
 
         self.width = settings.MAP_WIDTH
         self.height = settings.MAP_HEIGHT
@@ -155,7 +160,7 @@ class Room:
                 and not self.player.invulnerable
             ):
                 settings.SOUNDS["hit-player"].play()
-                self.player.damage(1)
+                self.player.damage(2 if entity.is_boss else 1)
                 self.player.go_invulnerable(1.5)
 
                 if self.player.health == 0:
@@ -179,11 +184,23 @@ class Room:
         for projectile in list(self.projectiles):
             projectile.update(dt)
 
+            if projectile.kind == "fireball" and projectile.collides(self.player):
+                projectile.dead = True
+                self.player.health = 0
+                self.on_game_over()
+                continue
+
             for entity in self.entities:
                 if projectile.dead:
                     break
 
-                if not entity.dead and projectile.collides(entity):
+                if (
+                    not entity.dead
+                    and projectile.owner is not entity
+                    and projectile.collides(entity)
+                ):
+                    if entity.is_boss and projectile.kind == "arrow":
+                            entity.expose_to_sword(random.uniform(5.0, 7.0))
                     entity.damage(1)
                     settings.SOUNDS["hit-enemy"].play()
                     projectile.dead = True
@@ -313,6 +330,37 @@ class Room:
 
     def _generate_entities(self) -> None:
         """Randomly creates an assortment of enemies for the player to fight."""
+        if self.is_boss_room:
+            definition = ENTITY_DEFS["ghost"]
+            x = (
+                settings.MAP_RENDER_OFFSET_X
+                + settings.MAP_WIDTH * settings.TILE_SIZE / 2
+                - 8
+            )
+            y = (
+                settings.MAP_RENDER_OFFSET_Y
+                + settings.MAP_HEIGHT * settings.TILE_SIZE / 2
+                - 8
+            )
+            boss = Entity(
+                x=x,
+                y=y,
+                width=16,
+                height=16,
+                walk_speed=0,
+                health=8,
+                animation_defs=definition["animations"],
+                states={},
+            )
+            boss.is_boss = True
+            boss.sword_immune = True
+            boss.state_machine.states = {
+                "boss": lambda sm, e=boss: BossState(e, sm),
+            }
+            boss.change_state("boss")
+            self.entities.append(boss)
+            return
+
         for _ in range(10):
             enemy_type = random.choice(_ENEMY_TYPES)
             definition = ENTITY_DEFS[enemy_type]
@@ -346,6 +394,9 @@ class Room:
 
     def _generate_objects(self, dungeon: Any = None) -> None:
         """Randomly creates an assortment of obstacles for the player to navigate around."""
+        if self.is_boss_room:
+            return
+
         switch = GameObject(
             GAME_OBJECT_DEFS["switch"],
             random.randint(

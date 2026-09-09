@@ -79,6 +79,17 @@ GAME_OBJECT_DEFS: Dict[str, Dict[str, Any]] = {
         "default_state": "default",
         "states": {"default": {}},
     },
+    "fireball": {
+        "type": "fireball",
+        "texture": "bow_arrows",
+        "frame": 3,
+        "width": 16,
+        "height": 16,
+        "solid": False,
+        "consumable": False,
+        "default_state": "default",
+        "states": {"default": {}},
+    },
     # Definition of heart as a consumable object type.
     "heart": {
         "type": "heart",
