@@ -78,6 +78,7 @@ SPLIT_ANGLE = 18
 IDLE_LINEAR_SPEED_THRESHOLD = 30
 IDLE_ANGULAR_SPEED_THRESHOLD = 0.3
 IDLE_FRAMES_LIMIT = 100
+VICTORY_DELAY = 3.0
 
 CAMERA_FOLLOW_RATE = 6.0
 CAMERA_ZOOM_LERP_RATE = 3.0
@@ -111,6 +112,7 @@ class PlayState(BaseState):
         self.flinging = False
         self.split_used = False
         self.idle_frames = 0
+        self.victory_timer = None
 
         self.pressed_position = pygame.Vector2()
         self.pressed_camera_target = pygame.Vector2()
@@ -128,8 +130,12 @@ class PlayState(BaseState):
         self.level.update(dt)
 
         if self.level.all_enemies_defeated:
-            self.state_machine.change("victory")
-            return
+            if self.victory_timer is None:
+                self.victory_timer = 0.0
+            self.victory_timer += dt
+            if self.victory_timer >= VICTORY_DELAY:
+                self.state_machine.change("victory")
+                return
 
         if self.flinging:
             self._update_bird_collisions()
