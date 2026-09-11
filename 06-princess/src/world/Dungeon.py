@@ -25,14 +25,18 @@ class Dungeon:
         self,
         player: TypeVar("Player"),
         on_game_over: Callable[[], None],
+        on_boss_defeated: Callable[[], None] | None = None,
     ) -> None:
         self.player = player
         self.on_game_over = on_game_over
+        self.on_boss_defeated = on_boss_defeated or (lambda: None)
         self.chest_available = True
         self.boss_room_created = False
 
         # Current room we're operating in.
-        self.current_room = Room(self.player, self.on_game_over, self)
+        self.current_room = Room(
+            self.player, self.on_game_over, self, on_boss_defeated=self.on_boss_defeated
+        )
 
         # Room we're moving the camera to during a shift; becomes the
         # active room afterwards.
@@ -68,6 +72,7 @@ class Dungeon:
             self.player,
             self.on_game_over,
             self,
+            on_boss_defeated=self.on_boss_defeated,
             is_boss_room=is_boss_room,
             entrance_direction=entrance_direction,
         )

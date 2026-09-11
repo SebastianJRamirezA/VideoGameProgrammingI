@@ -86,12 +86,14 @@ class Room:
         player: TypeVar("Player"),
         on_game_over: Callable[[], None],
         dungeon: Any = None,
+        on_boss_defeated: Optional[Callable[[], None]] = None,
         is_boss_room: bool = False,
         entrance_direction: Optional[str] = None,
     ) -> None:
         # Reference to player for collisions, etc.
         self.player = player
         self.on_game_over = on_game_over
+        self.on_boss_defeated = on_boss_defeated or (lambda: None)
         self.is_boss_room = is_boss_room
         self.entrance_direction = entrance_direction
 
@@ -148,6 +150,7 @@ class Room:
                     entity.update(dt)
                     if entity.current_animation.times_played > 0:
                         entity.dead = True
+                        self.on_boss_defeated()
                 else:
                     entity.dead = True
 
@@ -168,6 +171,7 @@ class Room:
                 not entity.dead
                 and self.player.collides(entity)
                 and not self.player.invulnerable
+                and (not entity.is_boss or entity.vulnerable_timer <= 0)
             ):
                 settings.SOUNDS["hit-player"].play()
                 self.player.damage(2 if entity.is_boss else 1)
