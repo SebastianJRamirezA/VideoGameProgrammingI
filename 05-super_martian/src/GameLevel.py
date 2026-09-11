@@ -35,16 +35,16 @@ class GameLevel:
         self.key = None
         self.goal_score = getattr(settings, "TARGET_SCORE", 100)
 
-        for obj in self.tilemap.object_layers.get("creatures", []):
-            self.add_creature(
-                {
-                    "tile_index": obj.properties["tile_index"],
-                    "x": obj.x,
-                    "y": obj.y,
-                    "width": obj.width,
-                    "height": obj.height,
-                }
-            )
+        # for obj in self.tilemap.object_layers.get("creatures", []):
+        #     self.add_creature(
+        #         {
+        #             "tile_index": obj.properties["tile_index"],
+        #             "x": obj.x,
+        #             "y": obj.y,
+        #             "width": obj.width,
+        #             "height": obj.height,
+        #         }
+        #     )
 
         for obj in self.tilemap.object_layers.get("coins", []):
             self.add_item(
@@ -66,7 +66,7 @@ class GameLevel:
 
         block_positions = {
             1: (720, 16),
-            # 2: (720, 16),
+            2: (720, 16),
         }
 
         if self.num_level in block_positions:

@@ -87,6 +87,13 @@ class PlayState(BaseState):
         if self.transitioning:
             return
 
+        if self.level == settings.NUM_LEVELS:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.unload()
+            Timer.clear()
+            self.state_machine.change("game_over", self.player, "You Win!")
+            return
+
         self.transitioning = True
         self.transition_alpha = 0
         next_level = self.level + 1 if self.level < settings.NUM_LEVELS else 1

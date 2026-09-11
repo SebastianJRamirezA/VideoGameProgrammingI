@@ -18,8 +18,9 @@ import settings
 
 
 class GameOverState(BaseState):
-    def enter(self, player) -> None:
+    def enter(self, player, message="Game Over!") -> None:
         self.player = player
+        self.message = message
 
     def on_input(self, input_id: str, input_data: InputData) -> None:
         if input_id == "enter" and input_data.pressed:
@@ -30,7 +31,7 @@ class GameOverState(BaseState):
 
         render_text(
             surface,
-            "Game Over!",
+            self.message,
             settings.FONTS["medium"],
             settings.VIRTUAL_WIDTH // 2,
             20,
