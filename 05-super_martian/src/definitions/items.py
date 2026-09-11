@@ -124,15 +124,15 @@ ITEMS: Dict[str, Dict[int, Dict[str, Any]]] = {
     },
     "key": {
         0: {
-            "texture_id": "tiles",
-            "frame_index": 36,
+            "texture_id": "key",
+            "frame_index": 0,
             "consumable": True,
             "collidable": True,
             "on_consume": pickup_key,
         },
         64: {
-            "texture_id": "tiles",
-            "frame_index": 64,
+            "texture_id": "key",
+            "frame_index": 0,
             "consumable": True,
             "collidable": True,
             "on_consume": pickup_key,
