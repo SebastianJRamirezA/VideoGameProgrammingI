@@ -35,7 +35,11 @@ class Dungeon:
 
         # Current room we're operating in.
         self.current_room = Room(
-            self.player, self.on_game_over, self, on_boss_defeated=self.on_boss_defeated
+            self.player,
+            self.on_game_over,
+            self,
+            on_boss_defeated=self.on_boss_defeated,
+            guarantee_chest=False,
         )
 
         # Room we're moving the camera to during a shift; becomes the
@@ -75,6 +79,7 @@ class Dungeon:
             on_boss_defeated=self.on_boss_defeated,
             is_boss_room=is_boss_room,
             entrance_direction=entrance_direction,
+            guarantee_chest=False,
         )
 
         # Start all doors in next room as open until we get in.

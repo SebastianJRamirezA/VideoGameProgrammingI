@@ -83,19 +83,22 @@ def _doorway_opening_for(
 class Room:
     def __init__(
         self,
-        player: TypeVar("Player"),
+        player: Any,
         on_game_over: Callable[[], None],
         dungeon: Any = None,
         on_boss_defeated: Optional[Callable[[], None]] = None,
         is_boss_room: bool = False,
         entrance_direction: Optional[str] = None,
+        guarantee_chest: bool = False,
     ) -> None:
         # Reference to player for collisions, etc.
         self.player = player
         self.on_game_over = on_game_over
+        self.dungeon = dungeon
         self.on_boss_defeated = on_boss_defeated or (lambda: None)
         self.is_boss_room = is_boss_room
         self.entrance_direction = entrance_direction
+        self.guarantee_chest = guarantee_chest
 
         self.width = settings.MAP_WIDTH
         self.height = settings.MAP_HEIGHT
@@ -263,7 +266,7 @@ class Room:
         ):
             player.y = obj.y + obj.height - player.height / 2
 
-    def take_adjacent_pot(self, player: TypeVar("Player")) -> None:
+    def take_adjacent_pot(self, player: Any) -> None:
         """
         Looks for a takeable object directly in front of the player (one
         tile away, in the direction they're currently facing) and, if
@@ -280,6 +283,7 @@ class Room:
                 obj.animation_index = 0
                 obj.animation_timer = 0.0
                 obj.solid = False
+                self.dungeon.chest_available = False
                 player.obtain_bow()
                 return
 
@@ -301,7 +305,7 @@ class Room:
 
     @staticmethod
     def _is_adjacent(
-        player: TypeVar("Player"),
+        player: Any,
         obj: GameObject,
         player_col: Optional[int] = None,
         player_row: Optional[int] = None,
@@ -430,14 +434,18 @@ class Room:
         )
         self.objects.append(switch)
 
-        if dungeon is not None and dungeon.chest_available:
+        chest_can_appear = (
+            dungeon is not None
+            and dungeon.chest_available
+            and (self.guarantee_chest or random.random() < 0.35)
+        )
+        if chest_can_appear:
             chest = GameObject(
                 GAME_OBJECT_DEFS["chest"],
                 random.randint(2, self.width - 2) * settings.TILE_SIZE,
                 random.randint(2, self.height - 2) * settings.TILE_SIZE,
             )
             self.objects.append(chest)
-            dungeon.chest_available = False
 
         def open_all_doors() -> None:
             if switch.state == "unpressed":
