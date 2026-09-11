@@ -10,7 +10,7 @@ This file contains the class BattleState: builds the battle background
 BATTLE_HEIGHT), spawns 3-5 random enemies for the current region (or,
 10% of the time in the west region, a final-boss fight against the
 Man-Eater Flower plus two regular west enemies), and kicks off the
-opening dialogue -> BattleMenuState turn loop.
+    opening dialogue -> rest-timer-driven turn loop.
 """
 
 import math
@@ -44,6 +44,8 @@ class BattleState(BaseState):
         self.on_exit = on_exit
         self.final_boss = False
         self.battle_started = False
+        self.battle_ready = False
+        self.turn_active = False
 
         self.tilemap = TileMap(
             settings.TILE_SIZE, settings.TILE_SIZE, BATTLE_WIDTH, BATTLE_HEIGHT
@@ -52,6 +54,9 @@ class BattleState(BaseState):
         self._create_map()
 
         self.party.set_battle_positions()
+        for character in self.party.characters.values():
+            if not character.dead:
+                character.reset_rest_for_battle()
 
         self.enemies = []
         self._create_enemies()
@@ -146,6 +151,16 @@ class BattleState(BaseState):
                 color=pygame.Color(32, 32, 189),
                 theme=BAR_THEME,
             )
+            character.cooldown_bar = ProgressBar(
+                character.x - (width - character.width) / 2,
+                character.y - 2,
+                width,
+                3,
+                value=character.rest_timer,
+                max_value=max(character.max_rest_time(), 0.001),
+                color=pygame.Color(220, 180, 32),
+                theme=BAR_THEME,
+            )
 
         for enemy in self.enemies:
             width = math.floor(enemy.width * 1.5)
@@ -159,15 +174,46 @@ class BattleState(BaseState):
                 color=pygame.Color(189, 32, 32),
                 theme=BAR_THEME,
             )
+            enemy.cooldown_bar = ProgressBar(
+                enemy.x - (width - enemy.width) / 2,
+                enemy.y - 6,
+                width,
+                3,
+                value=enemy.rest_timer,
+                max_value=max(enemy.max_rest_time(), 0.001),
+                color=pygame.Color(220, 180, 32),
+                theme=BAR_THEME,
+            )
 
     def update(self, dt: float) -> None:
         if not self.battle_started:
             self.battle_started = True
             self._trigger_starting_dialogue()
 
+        entities = list(self.party.characters.values()) + self.enemies
+        for entity in entities:
+            entity.update_rest(dt)
+            entity.cooldown_bar.value = entity.rest_timer
+
         for enemy in self.enemies:
             if not enemy.dead:
                 enemy.update(dt)
+
+        if self.battle_ready and not self.turn_active:
+            ready_entities = [entity for entity in entities if entity.ready_to_act()]
+            if ready_entities:
+                self._start_turn(ready_entities[0])
+
+    def _start_turn(self, entity: Any) -> None:
+        from src.states.game.TakeTurnState import TakeTurnState
+
+        self.turn_active = True
+        self.active_entity = entity
+        self.state_machine.push(
+            TakeTurnState(self.state_machine),
+            battle_state=self,
+            entity=entity,
+        )
 
     def _trigger_starting_dialogue(self) -> None:
         from src.states.game.BattleMenuState import BattleMenuState
@@ -192,7 +238,9 @@ class BattleState(BaseState):
             )
 
         def open_menu() -> None:
-            self.state_machine.push(BattleMenuState(self.state_machine), battle_state=self)
+            # BattleState.update now schedules whichever entity finishes
+            # resting first; no fixed party/enemy round is needed.
+            self.battle_ready = True
 
         self.state_machine.push(
             BattleMessageState(self.state_machine),
@@ -220,11 +268,13 @@ class BattleState(BaseState):
             if not enemy.dead:
                 enemy.render(surface)
                 enemy.energy_bar.render(surface)
+                enemy.cooldown_bar.render(surface)
 
         for character in self.party.characters.values():
             if not character.dead:
                 character.render(surface)
                 character.energy_bar.render(surface)
                 character.exp_bar.render(surface)
+                character.cooldown_bar.render(surface)
 
         self.bottom_panel.render(surface)
