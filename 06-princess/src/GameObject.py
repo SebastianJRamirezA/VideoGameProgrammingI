@@ -46,6 +46,8 @@ class GameObject:
         self.y = y
         self.width = definition["width"]
         self.height = definition["height"]
+        self.render_offset_x = definition.get("render_offset_x", 0)
+        self.render_offset_y = definition.get("render_offset_y", 0)
 
         self.on_collide = definition.get("on_collide") or (lambda: None)
 
@@ -89,4 +91,10 @@ class GameObject:
         if getattr(self, "rotation", 0):
             image = pygame.transform.rotate(image, self.rotation)
 
-        surface.blit(image, (self.x + offset_x, self.y + offset_y))
+        surface.blit(
+            image,
+            (
+                self.x + offset_x + self.render_offset_x,
+                self.y + offset_y + self.render_offset_y,
+            ),
+        )

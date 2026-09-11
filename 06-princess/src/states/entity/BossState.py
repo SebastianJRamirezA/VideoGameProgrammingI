@@ -14,12 +14,37 @@ class BossState(BaseEntityState):
     _FIREBALL_SPEED = 45.0
 
     def enter(self) -> None:
-        self.entity.change_animation("idle-down")
+        self.phase = "idle"
+        self.entity.change_animation("idle")
         self.fire_timer = self._FIRE_INTERVAL
+
+    def _change_animation(self, name: str) -> None:
+        self.entity.change_animation(name)
+        self.entity.current_animation.reset()
+
+    def on_arrow_hit(self, duration: float) -> None:
+        self.entity.expose_to_sword(duration)
+        self.fire_timer = 0.0
+        self.phase = "block"
+        self._change_animation("block")
 
     def process_ai(self, room: Any, dt: float) -> None:
         if self.entity.vulnerable_timer > 0:
             self.fire_timer = 0.0
+            if self.phase != "block":
+                self.phase = "block"
+                self._change_animation("block")
+            return
+
+        if self.phase == "block":
+            self.phase = "idle"
+            self.fire_timer = 0.0
+            self._change_animation("idle")
+
+        if self.phase == "ranged-attack":
+            if self.entity.current_animation.times_played > 0:
+                self.phase = "idle"
+                self._change_animation("idle")
             return
 
         self.fire_timer += dt
@@ -27,6 +52,8 @@ class BossState(BaseEntityState):
             return
 
         self.fire_timer = 0.0
+        self.phase = "ranged-attack"
+        self._change_animation("ranged-attack")
         boss_center = (
             self.entity.x + self.entity.width / 2,
             self.entity.y + self.entity.height / 2,

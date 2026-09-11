@@ -139,7 +139,17 @@ class Room:
 
         for entity in self.entities:
             if entity.health <= 0:
-                entity.dead = True
+                if entity.is_boss:
+                    if not getattr(entity, "defeat_started", False):
+                        entity.defeat_started = True
+                        entity.change_animation("defeated")
+                        entity.current_animation.reset()
+
+                    entity.update(dt)
+                    if entity.current_animation.times_played > 0:
+                        entity.dead = True
+                else:
+                    entity.dead = True
 
                 # Chance to drop a heart.
                 if not entity.dropped and random.randint(1, 10) == 1:
@@ -200,7 +210,11 @@ class Room:
                     and projectile.collides(entity)
                 ):
                     if entity.is_boss and projectile.kind == "arrow":
-                            entity.expose_to_sword(random.uniform(5.0, 7.0))
+                        duration = random.uniform(5.0, 7.0)
+                        entity.expose_to_sword(duration)
+                        boss_state = entity.state_machine.current
+                        if hasattr(boss_state, "on_arrow_hit"):
+                            boss_state.on_arrow_hit(duration)
                     entity.damage(1)
                     settings.SOUNDS["hit-enemy"].play()
                     projectile.dead = True
@@ -331,27 +345,21 @@ class Room:
     def _generate_entities(self) -> None:
         """Randomly creates an assortment of enemies for the player to fight."""
         if self.is_boss_room:
-            definition = ENTITY_DEFS["ghost"]
-            x = (
-                settings.MAP_RENDER_OFFSET_X
-                + settings.MAP_WIDTH * settings.TILE_SIZE / 2
-                - 8
-            )
-            y = (
-                settings.MAP_RENDER_OFFSET_Y
-                + settings.MAP_HEIGHT * settings.TILE_SIZE / 2
-                - 8
-            )
+            definition = ENTITY_DEFS["boss"]
+            x = settings.VIRTUAL_WIDTH / 2
+            y = settings.VIRTUAL_HEIGHT / 2
             boss = Entity(
-                x=x,
-                y=y,
-                width=16,
-                height=16,
+                x=x - 32,
+                y=y - 32,
+                width=64,
+                height=64,
                 walk_speed=0,
                 health=8,
                 animation_defs=definition["animations"],
                 states={},
             )
+            boss.offset_x = 18
+            boss.offset_y = 18
             boss.is_boss = True
             boss.sword_immune = True
             boss.state_machine.states = {
