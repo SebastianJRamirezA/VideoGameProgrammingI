@@ -41,7 +41,10 @@ class PlayerIdleState(BaseEntityState):
 
         if self.entity.interact_requested:
             self.entity.interact_requested = False
-            self.dungeon.current_room.take_adjacent_pot(self.entity)
+            if self.entity.has_bow:
+                self.entity.bow.fire(self.dungeon.current_room.projectiles)
+            else:
+                self.dungeon.current_room.take_adjacent_pot(self.entity)
 
             if self.entity.state_machine.current is not self:
                 return

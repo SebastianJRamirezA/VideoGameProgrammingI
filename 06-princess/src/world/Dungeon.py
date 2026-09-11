@@ -9,6 +9,7 @@ This file contains the class Dungeon.
 """
 
 import math
+import random
 from typing import Callable, TypeVar
 
 import pygame
@@ -24,12 +25,22 @@ class Dungeon:
         self,
         player: TypeVar("Player"),
         on_game_over: Callable[[], None],
+        on_boss_defeated: Callable[[], None] | None = None,
     ) -> None:
         self.player = player
         self.on_game_over = on_game_over
+        self.on_boss_defeated = on_boss_defeated or (lambda: None)
+        self.chest_available = True
+        self.boss_room_created = False
 
         # Current room we're operating in.
-        self.current_room = Room(self.player, self.on_game_over)
+        self.current_room = Room(
+            self.player,
+            self.on_game_over,
+            self,
+            on_boss_defeated=self.on_boss_defeated,
+            guarantee_chest=False,
+        )
 
         # Room we're moving the camera to during a shift; becomes the
         # active room afterwards.
@@ -47,11 +58,35 @@ class Dungeon:
         PlayerWalkState/PlayerPotWalkState.
         """
         self.shifting = True
-        self.next_room = Room(self.player, self.on_game_over)
+        is_boss_room = (
+            self.player.has_bow
+            and not self.boss_room_created
+            and random.random() < 0.35
+        )
+        if is_boss_room:
+            self.boss_room_created = True
+
+        entrance_direction = {
+            (settings.VIRTUAL_WIDTH, 0): "left",
+            (-settings.VIRTUAL_WIDTH, 0): "right",
+            (0, settings.VIRTUAL_HEIGHT): "top",
+            (0, -settings.VIRTUAL_HEIGHT): "bottom",
+        }[(shift_x, shift_y)]
+        self.next_room = Room(
+            self.player,
+            self.on_game_over,
+            self,
+            on_boss_defeated=self.on_boss_defeated,
+            is_boss_room=is_boss_room,
+            entrance_direction=entrance_direction,
+            guarantee_chest=False,
+        )
 
         # Start all doors in next room as open until we get in.
         for doorway in self.next_room.doorways:
-            doorway.open = True
+            doorway.open = (
+                is_boss_room and doorway.direction == entrance_direction
+            ) or not is_boss_room
 
         self.next_room.adjacent_offset_x = shift_x
         self.next_room.adjacent_offset_y = shift_y

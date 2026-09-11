@@ -22,6 +22,7 @@ from src.Entity import Entity
 from src.GameObject import GameObject
 from src.states.entity.EntityIdleState import EntityIdleState
 from src.states.entity.EntityWalkState import EntityWalkState
+from src.states.entity.BossState import BossState
 from src.world.Doorway import Doorway
 
 _ENEMY_TYPES = ["skeleton", "slime", "bat", "ghost", "spider"]
@@ -82,12 +83,22 @@ def _doorway_opening_for(
 class Room:
     def __init__(
         self,
-        player: TypeVar("Player"),
+        player: Any,
         on_game_over: Callable[[], None],
+        dungeon: Any = None,
+        on_boss_defeated: Optional[Callable[[], None]] = None,
+        is_boss_room: bool = False,
+        entrance_direction: Optional[str] = None,
+        guarantee_chest: bool = False,
     ) -> None:
         # Reference to player for collisions, etc.
         self.player = player
         self.on_game_over = on_game_over
+        self.dungeon = dungeon
+        self.on_boss_defeated = on_boss_defeated or (lambda: None)
+        self.is_boss_room = is_boss_room
+        self.entrance_direction = entrance_direction
+        self.guarantee_chest = guarantee_chest
 
         self.width = settings.MAP_WIDTH
         self.height = settings.MAP_HEIGHT
@@ -100,7 +111,7 @@ class Room:
         self._generate_entities()
 
         self.objects: List[GameObject] = []
-        self._generate_objects()
+        self._generate_objects(dungeon)
 
         # Doorways that lead to other dungeon rooms.
         self.doorways = [
@@ -133,7 +144,18 @@ class Room:
 
         for entity in self.entities:
             if entity.health <= 0:
-                entity.dead = True
+                if entity.is_boss:
+                    if not getattr(entity, "defeat_started", False):
+                        entity.defeat_started = True
+                        entity.change_animation("defeated")
+                        entity.current_animation.reset()
+
+                    entity.update(dt)
+                    if entity.current_animation.times_played > 0:
+                        entity.dead = True
+                        self.on_boss_defeated()
+                else:
+                    entity.dead = True
 
                 # Chance to drop a heart.
                 if not entity.dropped and random.randint(1, 10) == 1:
@@ -152,9 +174,10 @@ class Room:
                 not entity.dead
                 and self.player.collides(entity)
                 and not self.player.invulnerable
+                and (not entity.is_boss or entity.vulnerable_timer <= 0)
             ):
                 settings.SOUNDS["hit-player"].play()
-                self.player.damage(1)
+                self.player.damage(2 if entity.is_boss else 1)
                 self.player.go_invulnerable(1.5)
 
                 if self.player.health == 0:
@@ -178,11 +201,28 @@ class Room:
         for projectile in list(self.projectiles):
             projectile.update(dt)
 
+            if projectile.kind == "fireball" and projectile.collides(self.player):
+                projectile.dead = True
+                settings.SOUNDS["hit-player"].play()
+                self.player.health = 0
+                self.on_game_over()
+                continue
+
             for entity in self.entities:
                 if projectile.dead:
                     break
 
-                if not entity.dead and projectile.collides(entity):
+                if (
+                    not entity.dead
+                    and projectile.owner is not entity
+                    and projectile.collides(entity)
+                ):
+                    if entity.is_boss and projectile.kind == "arrow":
+                        duration = random.uniform(5.0, 7.0)
+                        entity.expose_to_sword(duration)
+                        boss_state = entity.state_machine.current
+                        if hasattr(boss_state, "on_arrow_hit"):
+                            boss_state.on_arrow_hit(duration)
                     entity.damage(1)
                     settings.SOUNDS["hit-enemy"].play()
                     projectile.dead = True
@@ -222,7 +262,7 @@ class Room:
         ):
             player.y = obj.y + obj.height - player.height / 2
 
-    def take_adjacent_pot(self, player: TypeVar("Player")) -> None:
+    def take_adjacent_pot(self, player: Any) -> None:
         """
         Looks for a takeable object directly in front of the player (one
         tile away, in the direction they're currently facing) and, if
@@ -234,23 +274,52 @@ class Room:
         player_row = int((player_y + player_height / 2) // settings.TILE_SIZE)
 
         for obj in self.objects:
+            if obj.type == "chest" and obj.state == "closed" and self._is_adjacent(player, obj):
+                obj.state = "opening"
+                obj.animation_index = 0
+                obj.animation_timer = 0.0
+                obj.solid = False
+                self.dungeon.chest_available = False
+                player.obtain_bow()
+                return
+
+            if player.has_bow:
+                return
+
             if not obj.takeable:
                 continue
 
             obj_col = int((obj.x + obj.width / 2) // settings.TILE_SIZE)
             obj_row = int((obj.y + obj.height / 2) // settings.TILE_SIZE)
 
-            adjacent = (
-                (player.direction == "right" and obj_row == player_row and obj_col == player_col + 1)
-                or (player.direction == "left" and obj_row == player_row and obj_col == player_col - 1)
-                or (player.direction == "up" and obj_col == player_col and obj_row == player_row - 1)
-                or (player.direction == "down" and obj_col == player_col and obj_row == player_row + 1)
-            )
+            adjacent = self._is_adjacent(player, obj, player_col, player_row, obj_col, obj_row)
 
             if adjacent:
                 self.objects.remove(obj)
                 player.change_state("pot-lift", pot=obj)
                 return
+
+    @staticmethod
+    def _is_adjacent(
+        player: Any,
+        obj: GameObject,
+        player_col: Optional[int] = None,
+        player_row: Optional[int] = None,
+        obj_col: Optional[int] = None,
+        obj_row: Optional[int] = None,
+    ) -> bool:
+        if player_col is None:
+            player_col = int((player.x + player.width / 2) // settings.TILE_SIZE)
+            player_row = int((player.y + player.height / 2) // settings.TILE_SIZE)
+            obj_col = int((obj.x + obj.width / 2) // settings.TILE_SIZE)
+            obj_row = int((obj.y + obj.height / 2) // settings.TILE_SIZE)
+
+        return (
+            (player.direction == "right" and obj_row == player_row and obj_col == player_col + 1)
+            or (player.direction == "left" and obj_row == player_row and obj_col == player_col - 1)
+            or (player.direction == "up" and obj_col == player_col and obj_row == player_row - 1)
+            or (player.direction == "down" and obj_col == player_col and obj_row == player_row + 1)
+        )
 
     def _generate_walls_and_floors(self) -> None:
         """
@@ -284,6 +353,31 @@ class Room:
 
     def _generate_entities(self) -> None:
         """Randomly creates an assortment of enemies for the player to fight."""
+        if self.is_boss_room:
+            definition = ENTITY_DEFS["boss"]
+            x = settings.VIRTUAL_WIDTH / 2
+            y = settings.VIRTUAL_HEIGHT / 2
+            boss = Entity(
+                x=x - 32,
+                y=y - 32,
+                width=64,
+                height=64,
+                walk_speed=0,
+                health=8,
+                animation_defs=definition["animations"],
+                states={},
+            )
+            boss.offset_x = 18
+            boss.offset_y = 18
+            boss.is_boss = True
+            boss.sword_immune = True
+            boss.state_machine.states = {
+                "boss": lambda sm, e=boss: BossState(e, sm),
+            }
+            boss.change_state("boss")
+            self.entities.append(boss)
+            return
+
         for _ in range(10):
             enemy_type = random.choice(_ENEMY_TYPES)
             definition = ENTITY_DEFS[enemy_type]
@@ -315,8 +409,11 @@ class Room:
             entity.change_state("walk")
             self.entities.append(entity)
 
-    def _generate_objects(self) -> None:
+    def _generate_objects(self, dungeon: Any = None) -> None:
         """Randomly creates an assortment of obstacles for the player to navigate around."""
+        if self.is_boss_room:
+            return
+
         switch = GameObject(
             GAME_OBJECT_DEFS["switch"],
             random.randint(
@@ -332,6 +429,19 @@ class Room:
             ),
         )
         self.objects.append(switch)
+
+        chest_can_appear = (
+            dungeon is not None
+            and dungeon.chest_available
+            and (self.guarantee_chest or random.random() < 0.35)
+        )
+        if chest_can_appear:
+            chest = GameObject(
+                GAME_OBJECT_DEFS["chest"],
+                random.randint(2, self.width - 2) * settings.TILE_SIZE,
+                random.randint(2, self.height - 2) * settings.TILE_SIZE,
+            )
+            self.objects.append(chest)
 
         def open_all_doors() -> None:
             if switch.state == "unpressed":

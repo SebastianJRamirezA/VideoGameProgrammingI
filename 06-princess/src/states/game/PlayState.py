@@ -38,7 +38,11 @@ class PlayState(BaseState):
         # Rendering/collision offset for the spaced sprite.
         self.player.offset_y = 5
 
-        self.dungeon = Dungeon(self.player, on_game_over=self._on_game_over)
+        self.dungeon = Dungeon(
+            self.player,
+            on_game_over=self._on_game_over,
+            on_boss_defeated=self._on_boss_defeated,
+        )
 
         self.player.state_machine.states = {
             "walk": lambda sm: player_states.PlayerWalkState(self.player, sm, self.dungeon),
@@ -66,6 +70,9 @@ class PlayState(BaseState):
 
     def _on_game_over(self) -> None:
         self.state_machine.change("game-over", player=self.player)
+
+    def _on_boss_defeated(self) -> None:
+        self.state_machine.change("game-over", player=self.player, victory=True)
 
     def update(self, dt: float) -> None:
         self.dungeon.update(dt)

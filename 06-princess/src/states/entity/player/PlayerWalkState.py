@@ -44,7 +44,10 @@ class PlayerWalkState(BaseEntityState):
 
         if player.interact_requested:
             player.interact_requested = False
-            self.dungeon.current_room.take_adjacent_pot(player)
+            if player.has_bow:
+                player.bow.fire(self.dungeon.current_room.projectiles)
+            else:
+                self.dungeon.current_room.take_adjacent_pot(player)
 
             if player.state_machine.current is not self:
                 return
