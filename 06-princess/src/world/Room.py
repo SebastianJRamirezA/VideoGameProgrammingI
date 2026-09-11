@@ -200,8 +200,13 @@ class Room:
 
             if projectile.kind == "fireball" and projectile.collides(self.player):
                 projectile.dead = True
-                self.player.health = 0
-                self.on_game_over()
+                if not self.player.invulnerable:
+                    settings.SOUNDS["hit-player"].play()
+                    self.player.damage(2)
+                    self.player.go_invulnerable(1.5)
+
+                    if self.player.health <= 0:
+                        self.on_game_over()
                 continue
 
             for entity in self.entities:
