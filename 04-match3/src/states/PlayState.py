@@ -249,6 +249,10 @@ class PlayState(BaseState):
             self._return_tile(tile1, origin_i, origin_j)
             return
 
+        if not self.board.is_valid_move(origin_i, origin_j, target_i, target_j):
+            self._return_tile(tile1, origin_i, origin_j)
+            return
+
         tile2 = self.board.tiles[target_i][target_j]
         tile1_start_x, tile1_start_y = self.drag_start_x, self.drag_start_y
         tile2_start_x = target_j * settings.TILE_SIZE

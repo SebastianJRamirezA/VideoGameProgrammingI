@@ -98,22 +98,35 @@ class Board:
                     if next_i >= settings.BOARD_HEIGHT or next_j >= settings.BOARD_WIDTH:
                         continue
 
-                    colors[i][j], colors[next_i][next_j] = (
-                        colors[next_i][next_j],
-                        colors[i][j],
-                    )
-                    creates_match = self._creates_match(colors, i, j) or self._creates_match(
-                        colors, next_i, next_j
-                    )
-                    colors[i][j], colors[next_i][next_j] = (
-                        colors[next_i][next_j],
-                        colors[i][j],
-                    )
-
-                    if creates_match:
+                    if self._is_valid_move(colors, i, j, next_i, next_j):
                         return True
 
         return False
+
+    def is_valid_move(self, i: int, j: int, next_i: int, next_j: int) -> bool:
+        colors = [[tile.color for tile in row] for row in self.tiles]
+        return self._is_valid_move(colors, i, j, next_i, next_j)
+
+    def _is_valid_move(
+        self,
+        colors: List[List[int]],
+        i: int,
+        j: int,
+        next_i: int,
+        next_j: int,
+    ) -> bool:
+        colors[i][j], colors[next_i][next_j] = (
+            colors[next_i][next_j],
+            colors[i][j],
+        )
+        creates_match = self._creates_match(colors, i, j) or self._creates_match(
+            colors, next_i, next_j
+        )
+        colors[i][j], colors[next_i][next_j] = (
+            colors[next_i][next_j],
+            colors[i][j],
+        )
+        return creates_match
 
     def ensure_possible_move(self) -> bool:
         reshuffled = False
