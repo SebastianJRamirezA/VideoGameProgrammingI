@@ -23,8 +23,10 @@ class Board:
         self.x = x
         self.y = y
         self.matches: List[List[Tile]] = []
+        self.preserved_tiles: Set[Tile] = set()
         self.tiles: List[List[Tile]] = []
         self._initialize_tiles()
+        self.ensure_possible_move()
 
     def render(self, surface: pygame.Surface) -> None:
         for row in self.tiles:
@@ -59,6 +61,80 @@ class Board:
                 self.tiles[i][j] = Tile(
                     i, j, color, random.randint(0, settings.NUM_VARIETIES - 1)
                 )
+
+    def _creates_match(self, colors: List[List[int]], i: int, j: int) -> bool:
+        color = colors[i][j]
+
+        horizontal = 1
+        column = j - 1
+        while column >= 0 and colors[i][column] == color:
+            horizontal += 1
+            column -= 1
+        column = j + 1
+        while column < settings.BOARD_WIDTH and colors[i][column] == color:
+            horizontal += 1
+            column += 1
+
+        if horizontal >= 3:
+            return True
+
+        vertical = 1
+        row = i - 1
+        while row >= 0 and colors[row][j] == color:
+            vertical += 1
+            row -= 1
+        row = i + 1
+        while row < settings.BOARD_HEIGHT and colors[row][j] == color:
+            vertical += 1
+            row += 1
+
+        return vertical >= 3
+
+    def has_possible_moves(self) -> bool:
+        colors = [[tile.color for tile in row] for row in self.tiles]
+
+        for i in range(settings.BOARD_HEIGHT):
+            for j in range(settings.BOARD_WIDTH):
+                for next_i, next_j in ((i + 1, j), (i, j + 1)):
+                    if next_i >= settings.BOARD_HEIGHT or next_j >= settings.BOARD_WIDTH:
+                        continue
+
+                    if self._is_valid_move(colors, i, j, next_i, next_j):
+                        return True
+
+        return False
+
+    def is_valid_move(self, i: int, j: int, next_i: int, next_j: int) -> bool:
+        colors = [[tile.color for tile in row] for row in self.tiles]
+        return self._is_valid_move(colors, i, j, next_i, next_j)
+
+    def _is_valid_move(
+        self,
+        colors: List[List[int]],
+        i: int,
+        j: int,
+        next_i: int,
+        next_j: int,
+    ) -> bool:
+        colors[i][j], colors[next_i][next_j] = (
+            colors[next_i][next_j],
+            colors[i][j],
+        )
+        creates_match = self._creates_match(colors, i, j) or self._creates_match(
+            colors, next_i, next_j
+        )
+        colors[i][j], colors[next_i][next_j] = (
+            colors[next_i][next_j],
+            colors[i][j],
+        )
+        return creates_match
+
+    def ensure_possible_move(self) -> bool:
+        reshuffled = False
+        while not self.has_possible_moves():
+            self._initialize_tiles()
+            reshuffled = True
+        return reshuffled
 
     def _calculate_match_rec(self, tile: Tile) -> Set[Tile]:
         if tile in self.in_stack:
@@ -132,7 +208,7 @@ class Board:
         return match
 
     def calculate_matches_for(
-        self, new_tiles: List[Tile]
+        self, new_tiles: List[Tile], power_up_position: Optional[Tuple[int, int]] = None
     ) -> Optional[List[List[Tile]]]:
         self.in_match: Set[Tile] = set()
         self.in_stack: Set[Tile] = set()
@@ -147,14 +223,82 @@ class Board:
         delattr(self, "in_match")
         delattr(self, "in_stack")
 
+        preserved_tiles: Set[Tile] = set()
+        if power_up_position is not None:
+            power_up_i, power_up_j = power_up_position
+            power_up_tile = self.tiles[power_up_i][power_up_j]
+            for match in self.matches:
+                if len(match) == 4 and power_up_tile in match:
+                    power_up_tile.power_up = "line"
+                    preserved_tiles.add(power_up_tile)
+                    break
+                if len(match) >= 5 and power_up_tile in match:
+                    power_up_tile.power_up = "color_bomb"
+                    preserved_tiles.add(power_up_tile)
+                    break
+
+        self._expand_power_up_matches(preserved_tiles)
+        self.preserved_tiles = preserved_tiles
+
         return self.matches if len(self.matches) > 0 else None
+
+    def _expand_power_up_matches(self, preserved_tiles: Set[Tile]) -> None:
+        expanded_matches = []
+        for match in self.matches:
+            expanded_match = list(match)
+            for tile in match:
+                if tile in preserved_tiles or tile.power_up is None:
+                    continue
+
+                if tile.power_up == "line":
+                    for row_tile in self.tiles[tile.i]:
+                        if row_tile not in expanded_match:
+                            expanded_match.append(row_tile)
+                    for row in self.tiles:
+                        column_tile = row[tile.j]
+                        if column_tile not in expanded_match:
+                            expanded_match.append(column_tile)
+                elif tile.power_up == "color_bomb":
+                    for row in self.tiles:
+                        for color_tile in row:
+                            if (
+                                color_tile is not None
+                                and color_tile.color == tile.color
+                                and color_tile not in expanded_match
+                            ):
+                                expanded_match.append(color_tile)
+            expanded_matches.append(expanded_match)
+        self.matches = expanded_matches
+
+    def activate_power_up(self, i: int, j: int) -> None:
+        tile = self.tiles[i][j]
+        if not tile.power_up:
+            return
+
+        if tile.power_up == "color_bomb":
+            affected_tiles = [
+                board_tile
+                for row in self.tiles
+                for board_tile in row
+                if board_tile is not None and board_tile.color == tile.color
+            ]
+        else:
+            affected_tiles = list(self.tiles[i])
+            for row in self.tiles:
+                if row[j] not in affected_tiles:
+                    affected_tiles.append(row[j])
+        self.matches = [affected_tiles]
+        self.preserved_tiles = set()
 
     def remove_matches(self) -> None:
         for match in self.matches:
             for tile in match:
+                if tile in self.preserved_tiles:
+                    continue
                 self.tiles[tile.i][tile.j] = None
 
         self.matches = []
+        self.preserved_tiles = set()
 
     def get_falling_tiles(self) -> Tuple[Any, Dict[str, Any]]:
         # List of tweens to create
