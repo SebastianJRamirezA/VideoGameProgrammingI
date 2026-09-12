@@ -40,7 +40,7 @@ BOARD_HEIGHT = 8
 TILE_SIZE = 32
 
 NUM_VARIETIES = 6
-NUM_COLORS = 18
+NUM_COLORS = 8
 
 BACKGROUND_SCROLL_SPEED = 40
 BACKGROUND_LOOPING_POINT = -1024 + VIRTUAL_WIDTH - 4 + 51
@@ -57,6 +57,11 @@ TEXTURES = {
 }
 
 FRAMES = {"tiles": generate_tile_frames(TEXTURES["tiles"])}
+
+COLOR_FRAME_INDICES = (0, 8, 10, 16, 3, 5, 11, 13)
+POWER_UP_FRAME_INDICES = (2, 4, 12, 14, 1, 7, 9, 17)
+COLOR_FRAMES = [FRAMES["tiles"][index] for index in COLOR_FRAME_INDICES]
+POWER_UP_FRAMES = [FRAMES["tiles"][index] for index in POWER_UP_FRAME_INDICES]
 
 SOUNDS = {
     "clock": pygame.mixer.Sound(BASE_DIR / "assets" / "sounds" / "clock.wav"),

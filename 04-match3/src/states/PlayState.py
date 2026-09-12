@@ -233,6 +233,11 @@ class PlayState(BaseState):
         self.highlighted_tile = False
 
         if self.drag_axis is None or max(abs(delta_x), abs(delta_y)) < settings.TILE_SIZE // 2:
+            if tile1.power_up is not None:
+                self.active = False
+                self.board.activate_power_up(origin_i, origin_j)
+                self._process_matches()
+                return
             self._return_tile(tile1, origin_i, origin_j)
             return
 
@@ -269,7 +274,7 @@ class PlayState(BaseState):
             )
             tile1.i, tile1.j = target_i, target_j
             tile2.i, tile2.j = origin_i, origin_j
-            self._calculate_matches([tile1, tile2])
+            self._calculate_matches([tile1, tile2], (target_i, target_j))
 
         Timer.tween(
             0.25,
@@ -291,8 +296,10 @@ class PlayState(BaseState):
             ],
         )
 
-    def _calculate_matches(self, tiles: List) -> None:
-        matches = self.board.calculate_matches_for(tiles)
+    def _calculate_matches(
+        self, tiles: List, power_up_position: tuple[int, int] | None = None
+    ) -> None:
+        matches = self.board.calculate_matches_for(tiles, power_up_position)
 
         if matches is None:
             if self.board.ensure_possible_move():
@@ -300,6 +307,11 @@ class PlayState(BaseState):
             else:
                 self.active = True
             return
+
+        self._process_matches()
+
+    def _process_matches(self) -> None:
+        matches = self.board.matches
 
         settings.SOUNDS["match"].stop()
         settings.SOUNDS["match"].play()
