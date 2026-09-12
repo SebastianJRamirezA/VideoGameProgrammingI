@@ -39,6 +39,7 @@ class PlayState(BaseState):
         self.drag_start_x = 0
         self.drag_start_y = 0
         self.drag_axis = None
+        self.shuffling = False
 
         self.active = True
 
@@ -64,6 +65,9 @@ class PlayState(BaseState):
         )
 
         def decrement_timer():
+            if self.shuffling:
+                return
+
             self.timer -= 1
 
             # Play warning sound on timer if we get low
@@ -73,6 +77,9 @@ class PlayState(BaseState):
         Timer.every(1, decrement_timer)
 
     def update(self, _: float) -> None:
+        if self.shuffling:
+            return
+
         if self.timer <= 0:
             Timer.clear()
             settings.SOUNDS["game-over"].play()
@@ -85,6 +92,23 @@ class PlayState(BaseState):
 
     def render(self, surface: pygame.Surface) -> None:
         self.board.render(surface)
+
+        if self.shuffling:
+            shuffling_font = settings.FONTS["large"]
+            shuffling_width, shuffling_height = shuffling_font.size(
+                "shuffling"
+            )
+            board_center_x = self.board.x + settings.BOARD_WIDTH * settings.TILE_SIZE // 2
+            board_center_y = self.board.y + settings.BOARD_HEIGHT * settings.TILE_SIZE // 2
+            render_text(
+                surface,
+                "shuffling",
+                shuffling_font,
+                board_center_x - shuffling_width // 2,
+                board_center_y - shuffling_height // 2,
+                (255, 255, 255),
+                shadowed=True,
+            )
 
         if self.highlighted_tile:
             x = self.highlighted_j1 * settings.TILE_SIZE + self.board.x
@@ -267,7 +291,10 @@ class PlayState(BaseState):
         matches = self.board.calculate_matches_for(tiles)
 
         if matches is None:
-            self.active = True
+            if self.board.ensure_possible_move():
+                self._animate_shuffle()
+            else:
+                self.active = True
             return
 
         settings.SOUNDS["match"].stop()
@@ -287,3 +314,20 @@ class PlayState(BaseState):
                 [item[0] for item in falling_tiles]
             ),
         )
+
+    def _animate_shuffle(self) -> None:
+        self.shuffling = True
+        self.active = False
+        tweens = []
+
+        for row in self.board.tiles:
+            for tile in row:
+                target_y = tile.y
+                tile.y -= settings.TILE_SIZE
+                tweens.append((tile, {"y": target_y}))
+
+        Timer.tween(1.0, tweens, on_finish=self._finish_shuffle)
+
+    def _finish_shuffle(self) -> None:
+        self.shuffling = False
+        self.active = True

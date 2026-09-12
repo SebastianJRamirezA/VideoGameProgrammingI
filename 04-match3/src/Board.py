@@ -25,6 +25,7 @@ class Board:
         self.matches: List[List[Tile]] = []
         self.tiles: List[List[Tile]] = []
         self._initialize_tiles()
+        self.ensure_possible_move()
 
     def render(self, surface: pygame.Surface) -> None:
         for row in self.tiles:
@@ -59,6 +60,67 @@ class Board:
                 self.tiles[i][j] = Tile(
                     i, j, color, random.randint(0, settings.NUM_VARIETIES - 1)
                 )
+
+    def _creates_match(self, colors: List[List[int]], i: int, j: int) -> bool:
+        color = colors[i][j]
+
+        horizontal = 1
+        column = j - 1
+        while column >= 0 and colors[i][column] == color:
+            horizontal += 1
+            column -= 1
+        column = j + 1
+        while column < settings.BOARD_WIDTH and colors[i][column] == color:
+            horizontal += 1
+            column += 1
+
+        if horizontal >= 3:
+            return True
+
+        vertical = 1
+        row = i - 1
+        while row >= 0 and colors[row][j] == color:
+            vertical += 1
+            row -= 1
+        row = i + 1
+        while row < settings.BOARD_HEIGHT and colors[row][j] == color:
+            vertical += 1
+            row += 1
+
+        return vertical >= 3
+
+    def has_possible_moves(self) -> bool:
+        colors = [[tile.color for tile in row] for row in self.tiles]
+
+        for i in range(settings.BOARD_HEIGHT):
+            for j in range(settings.BOARD_WIDTH):
+                for next_i, next_j in ((i + 1, j), (i, j + 1)):
+                    if next_i >= settings.BOARD_HEIGHT or next_j >= settings.BOARD_WIDTH:
+                        continue
+
+                    colors[i][j], colors[next_i][next_j] = (
+                        colors[next_i][next_j],
+                        colors[i][j],
+                    )
+                    creates_match = self._creates_match(colors, i, j) or self._creates_match(
+                        colors, next_i, next_j
+                    )
+                    colors[i][j], colors[next_i][next_j] = (
+                        colors[next_i][next_j],
+                        colors[i][j],
+                    )
+
+                    if creates_match:
+                        return True
+
+        return False
+
+    def ensure_possible_move(self) -> bool:
+        reshuffled = False
+        while not self.has_possible_moves():
+            self._initialize_tiles()
+            reshuffled = True
+        return reshuffled
 
     def _calculate_match_rec(self, tile: Tile) -> Set[Tile]:
         if tile in self.in_stack:
