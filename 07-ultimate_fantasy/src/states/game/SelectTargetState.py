@@ -57,7 +57,7 @@ class SelectTargetState(BaseState):
                 return
 
     def update(self, dt: float) -> None:
-        for enemy in self.battle_state.enemies:
+        for enemy in getattr(self.battle_state, "enemies", []):
             if not enemy.dead:
                 enemy.update(dt)
 

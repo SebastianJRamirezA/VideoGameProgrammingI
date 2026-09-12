@@ -38,11 +38,12 @@ class PauseMenuState(BaseState):
 
         self.menu = Menu(
             settings.VIRTUAL_WIDTH / 2 - 70,
-            settings.VIRTUAL_HEIGHT / 2 - 48,
+            settings.VIRTUAL_HEIGHT / 2 - 60,
             140,
-            96,
+            120,
             items=[
                 ("Continue", self.close),
+                ("Party", self._party),
                 ("Save game", self._save),
                 ("Load another game", self._load_another),
                 ("Quit", self._quit),
@@ -52,6 +53,14 @@ class PauseMenuState(BaseState):
 
     def close(self) -> None:
         self.state_machine.pop()
+
+    def _party(self) -> None:
+        from src.states.game.PartyMenuState import PartyMenuState
+
+        self.state_machine.pop()
+        self.state_machine.push(
+            PartyMenuState(self.state_machine), play_state=self.play_state
+        )
 
     # -- save --------------------------------------------------------------
 
