@@ -238,9 +238,9 @@ class BattleState(BaseState):
             )
 
         def open_menu() -> None:
-            # BattleState.update now schedules whichever entity finishes
-            # resting first; no fixed party/enemy round is needed.
-            self.battle_ready = True
+            self.state_machine.push(
+                BattleMenuState(self.state_machine), battle_state=self
+            )
 
         self.state_machine.push(
             BattleMessageState(self.state_machine),
