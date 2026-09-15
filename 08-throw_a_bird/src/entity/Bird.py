@@ -45,6 +45,7 @@ class Bird:
 
         self.initial_position = pygame.Vector2(x, y)
         self.image = settings.TEXTURES[BIRD["sprite"]]
+        self.collided = False
 
     @property
     def position(self) -> pygame.Vector2:
@@ -59,6 +60,14 @@ class Bird:
         self.body.angle = 0.0
         self.body.velocity = (0, 0)
         self.body.angular_velocity = 0.0
+
+    def has_scene_collision(self) -> bool:
+        for other_body in self.body.touching_bodies:
+            other = other_body.user_data
+            if other == "wind" or isinstance(other, Bird):
+                continue
+            return True
+        return False
 
     def render(self, surface: pygame.Surface, camera) -> None:
         diameter = max(1, round(self.radius * 2 * camera.zoom))

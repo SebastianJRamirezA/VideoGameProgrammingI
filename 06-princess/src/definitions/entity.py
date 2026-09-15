@@ -177,4 +177,32 @@ ENTITY_DEFS: Dict[str, Dict[str, Any]] = {
             "idle-up": {"frames": [95]},
         },
     },
+    "boss": {
+        "texture": "boss",
+        "animations": {
+            "idle": {
+                "frames": [1, 2, 3, 4],
+                "interval": 0.18,
+                "texture": "boss",
+            },
+            "ranged-attack": {
+                "frames": [21, 22, 23, 24, 25, 26, 27, 28, 29],
+                "interval": 0.08,
+                "loops": 1,
+                "texture": "boss",
+            },
+            "block": {
+                "frames": [31, 32, 33, 34, 35, 36, 37, 38, 38],
+                "interval": 0.1,
+                "loops": 1,
+                "texture": "boss",
+            },
+            "defeated": {
+                "frames": [71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
+                "interval": 0.1,
+                "loops": 1,
+                "texture": "boss",
+            },
+        },
+    },
 }

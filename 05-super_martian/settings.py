@@ -57,7 +57,10 @@ CAMERA_FOLLOW_RATE = 8.0
 FLYING_CREATURE_MIN_SPAWN_DELAY = 4
 FLYING_CREATURE_MAX_SPAWN_DELAY = 9
 
-NUM_LEVELS = 1
+NUM_LEVELS = 2
+TARGET_SCORE = 100
+SPECIAL_BLOCK_SCORE = TARGET_SCORE
+SPECIAL_BLOCK_UNLOCK_SCORE = TARGET_SCORE
 
 BASE_DIR = pathlib.Path(__file__).parent
 
@@ -70,12 +73,14 @@ TEXTURES = {
     "tiles": pygame.image.load(BASE_DIR / "assets" / "graphics" / "tileset.png"),
     "martian": pygame.image.load(BASE_DIR / "assets" / "graphics" / "martian.png"),
     "creatures": pygame.image.load(BASE_DIR / "assets" / "graphics" / "creatures.png"),
+    "key": pygame.image.load(BASE_DIR / "assets" / "graphics" / "key.png"),
 }
 
 FRAMES = {
     "tiles": frames.generate_frames(TEXTURES["tiles"], 16, 16),
     "martian": frames.generate_frames(TEXTURES["martian"], 16, 20),
     "creatures": frames.generate_frames(TEXTURES["creatures"], 16, 16),
+    "key": frames.generate_frames(TEXTURES["key"], 16, 18),
 }
 
 SOUNDS = {

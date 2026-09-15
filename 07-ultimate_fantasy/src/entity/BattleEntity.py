@@ -17,6 +17,19 @@ from typing import Any, Dict, List
 from src.entity.Entity import Entity
 
 
+DEFAULT_REST_TIMES = {
+    "warrior": 2.8,
+    "ranger": 1.4,
+    "healer": 1.9,
+    "mage": 2.2,
+    "slime": 2.0,
+    "worm": 2.4,
+    "snake": 1.7,
+    "pumpking": 2.8,
+    "boss": 3.6,
+}
+
+
 class BattleEntity(Entity):
     def __init__(self, definition: Dict[str, Any]) -> None:
         super().__init__(definition)
@@ -37,6 +50,33 @@ class BattleEntity(Entity):
         self.magic: float = self.base_magic
 
         self.current_hp: float = self.hp
+        self.rest_time: float = definition.get(
+            "rest_time", DEFAULT_REST_TIMES.get(self.klass, 2.0)
+        )
+        self.initial_rest_time: float = definition.get(
+            "initial_rest_time", self.rest_time * 0.35
+        )
+        self.rest_timer: float = self.initial_rest_time
+        self.pending_action: Dict[str, Any] = {}
+
+    def update_rest(self, dt: float) -> None:
+        self.rest_timer = max(0.0, self.rest_timer - dt)
+
+    def start_rest(self, action: Dict[str, Any] = None) -> None:
+        self.rest_timer = (action or {}).get("rest_time", self.rest_time)
+
+    def reset_rest_for_battle(self) -> None:
+        self.rest_timer = self.initial_rest_time
+        self.pending_action = {}
+
+    def max_rest_time(self) -> float:
+        return max(
+            self.rest_time,
+            *(action.get("rest_time", self.rest_time) for action in self.actions),
+        )
+
+    def ready_to_act(self) -> bool:
+        return not self.dead and self.rest_timer <= 0
 
     def damage(self, amount: float) -> None:
         self.current_hp -= amount

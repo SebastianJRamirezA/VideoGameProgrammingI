@@ -20,8 +20,9 @@ import settings
 
 
 class GameOverState(BaseState):
-    def enter(self, player: TypeVar("Player")) -> None:
+    def enter(self, player: TypeVar("Player"), victory: bool = False) -> None:
         self.player = player
+        self.victory = victory
         pygame.mixer.music.load(settings.MUSIC["game-over"])
         pygame.mixer.music.play()
 
@@ -35,7 +36,7 @@ class GameOverState(BaseState):
     def render(self, surface: pygame.Surface) -> None:
         render_text(
             surface,
-            "GAME OVER",
+            "VICTORY" if self.victory else "GAME OVER",
             settings.FONTS["princess"],
             settings.VIRTUAL_WIDTH / 2,
             settings.VIRTUAL_HEIGHT / 2 - 48,

@@ -8,7 +8,8 @@ alejandro.j.mujic4@gmail.com
 This file contains the class Projectile.
 """
 
-from typing import Any
+import math
+from typing import Any, Tuple
 
 import pygame
 
@@ -19,11 +20,33 @@ _MAX_TILES = 4
 
 
 class Projectile:
-    def __init__(self, obj: Any, direction: str) -> None:
+    def __init__(
+        self,
+        obj: Any,
+        direction: Any,
+        speed: float = _SPEED,
+        owner: Any = None,
+        kind: str = "object",
+    ) -> None:
         self.obj = obj
         self.direction = direction
+        self.speed = speed
+        self.owner = owner
+        self.kind = kind
         self.distance = 0.0
         self.dead = False
+
+        if isinstance(direction, str):
+            directions = {
+                "up": (0.0, -1.0),
+                "down": (0.0, 1.0),
+                "left": (-1.0, 0.0),
+                "right": (1.0, 0.0),
+            }
+            self.velocity: Tuple[float, float] = directions[direction]
+        else:
+            length = math.hypot(direction[0], direction[1]) or 1.0
+            self.velocity = (direction[0] / length, direction[1] / length)
 
     def get_collision_rect(self) -> pygame.Rect:
         return self.obj.get_collision_rect()
@@ -32,42 +55,27 @@ class Projectile:
         if self.dead:
             return
 
-        d = _SPEED * dt
+        distance = self.speed * dt
+        self.obj.x += self.velocity[0] * distance
+        self.obj.y += self.velocity[1] * distance
 
-        if self.direction == "up":
-            self.obj.y -= d
-            limit = settings.MAP_RENDER_OFFSET_Y + settings.TILE_SIZE - self.obj.height / 2
-            if self.obj.y <= limit:
-                self.obj.y = limit
-                self.dead = True
-        elif self.direction == "down":
-            self.obj.y += d
-            bottom_edge = (
-                settings.MAP_HEIGHT * settings.TILE_SIZE
-                + settings.MAP_RENDER_OFFSET_Y
-                - settings.TILE_SIZE
-            )
-            if self.obj.y + self.obj.height >= bottom_edge:
-                self.obj.y = bottom_edge - self.obj.height
-                self.dead = True
-        elif self.direction == "left":
-            self.obj.x -= d
-            limit = settings.MAP_RENDER_OFFSET_X + settings.TILE_SIZE
-            if self.obj.x <= limit:
-                self.obj.x = limit
-                self.dead = True
-        elif self.direction == "right":
-            self.obj.x += d
-            limit = settings.VIRTUAL_WIDTH - settings.TILE_SIZE * 2
-            if self.obj.x + self.obj.width >= limit:
-                self.obj.x = limit - self.obj.width
-                self.dead = True
+        left = settings.MAP_RENDER_OFFSET_X + settings.TILE_SIZE
+        top = settings.MAP_RENDER_OFFSET_Y + settings.TILE_SIZE
+        right = settings.VIRTUAL_WIDTH - settings.TILE_SIZE * 2
+        bottom = settings.MAP_HEIGHT * settings.TILE_SIZE + settings.MAP_RENDER_OFFSET_Y - settings.TILE_SIZE
+        if (
+            self.obj.x < left
+            or self.obj.x + self.obj.width > right
+            or self.obj.y < top
+            or self.obj.y + self.obj.height > bottom
+        ):
+            self.dead = True
 
         if self.dead:
             settings.SOUNDS["pot-wall"].play()
             return
 
-        self.distance += d
+        self.distance += distance
 
         if self.distance > _MAX_TILES * settings.TILE_SIZE:
             self.dead = True

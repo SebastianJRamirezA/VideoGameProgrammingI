@@ -56,6 +56,9 @@ class Entity:
 
         self.walk_speed = walk_speed
         self.health = health
+        self.is_boss = False
+        self.sword_immune = False
+        self.vulnerable_timer = 0.0
 
         # Flags for flashing the entity when hit.
         self.invulnerable = False
@@ -110,6 +113,9 @@ class Entity:
     def damage(self, dmg: int) -> None:
         self.health -= dmg
 
+    def expose_to_sword(self, duration: float) -> None:
+        self.vulnerable_timer = max(self.vulnerable_timer, duration)
+
     def heal(self, life: int) -> None:
         self.health = min(self.health + life, 6)
 
@@ -133,6 +139,9 @@ class Entity:
                 self.invulnerable_timer = 0
                 self.invulnerable_duration = 0
                 self.flash_timer = 0
+
+        if self.vulnerable_timer > 0:
+            self.vulnerable_timer = max(0.0, self.vulnerable_timer - dt)
 
         self.state_machine.update(dt)
 

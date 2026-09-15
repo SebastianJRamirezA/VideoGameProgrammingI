@@ -44,6 +44,7 @@ class SelectActionState(BaseState):
     def _select_action(self, action: Dict[str, Any]) -> None:
         from src.states.game.SelectTargetState import SelectTargetState
 
+        self.entity.pending_action = action
         if action["target_type"] == "enemy":
             targets: List[Any] = self.battle_state.enemies
         else:
@@ -86,6 +87,7 @@ class SelectActionState(BaseState):
         )
 
     def _nothing(self) -> None:
+        self.entity.pending_action = {}
         self.state_machine.pop()
         self.on_action_selected()
 

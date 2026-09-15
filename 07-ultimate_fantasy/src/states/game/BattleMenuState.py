@@ -5,8 +5,8 @@ Study Case: Ultimate Fantasy (RPG)
 Author: Alejandro Mujica
 alejandro.j.mujic4@gmail.com
 
-This file contains the class BattleMenuState: the Fight/Run menu shown at
-the start of every round.
+This file contains the class BattleMenuState: the Fight/Run menu shown
+before the first battle turn.
 """
 
 from typing import Any
@@ -32,12 +32,8 @@ class BattleMenuState(BaseState):
         )
 
     def _fight(self) -> None:
-        from src.states.game.TakeTurnState import TakeTurnState
-
         self.state_machine.pop()
-        self.state_machine.push(
-            TakeTurnState(self.state_machine), battle_state=self.battle_state
-        )
+        self.battle_state.battle_ready = True
 
     def _run(self) -> None:
         from src.states.game.BattleMessageState import BattleMessageState

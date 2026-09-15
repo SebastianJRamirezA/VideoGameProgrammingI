@@ -227,7 +227,7 @@ class PlayState(BaseState):
                         break
         elif input_id == "fire" and input_data.pressed:
             if self.cannon_powerup is not None:
-                self.cannon_powerup.fire(self)"
+                self.cannon_powerup.fire(self)
         elif input_id == "move_left":
             if input_data.pressed:
                 self.paddle.vx = -settings.PADDLE_SPEED

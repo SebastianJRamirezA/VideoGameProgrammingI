@@ -82,6 +82,12 @@ TEXTURES = {
     ),
     "hearts": pygame.image.load(BASE_DIR / "assets" / "graphics" / "hearts.png"),
     "switches": pygame.image.load(BASE_DIR / "assets" / "graphics" / "switches.png"),
+    "chests": pygame.image.load(BASE_DIR / "assets" / "graphics" / "chests.png"),
+    "bow_arrows": pygame.image.load(BASE_DIR / "assets" / "graphics" / "bow_arrows.png"),
+    "boss": pygame.image.load(BASE_DIR / "assets" / "graphics" / "boss.png"),
+    "boss-arm-projectile": pygame.image.load(
+        BASE_DIR / "assets" / "graphics" / "boss_arm_projectile.png"
+    ),
     "entities": pygame.image.load(BASE_DIR / "assets" / "graphics" / "entities.png"),
     "character-pot-lift": pygame.image.load(
         BASE_DIR / "assets" / "graphics" / "character_pot_lift.png"
@@ -103,6 +109,12 @@ FRAMES = {
     ),
     "hearts": frames.generate_frames(TEXTURES["hearts"], 16, 16),
     "switches": frames.generate_frames(TEXTURES["switches"], 16, 18),
+    "chests": frames.generate_frames(TEXTURES["chests"], 32, 32),
+    "bow_arrows": frames.generate_frames(TEXTURES["bow_arrows"], 16, 16),
+    "boss": frames.generate_frames(TEXTURES["boss"], 100, 100),
+    "boss-arm-projectile": frames.generate_frames(
+        TEXTURES["boss-arm-projectile"], 100, 100
+    ),
     "entities": frames.generate_frames(TEXTURES["entities"], 16, 16),
     "character-pot-lift": frames.generate_frames(TEXTURES["character-pot-lift"], 16, 32),
     "character-pot-walk": frames.generate_frames(TEXTURES["character-pot-walk"], 16, 32),

@@ -31,7 +31,7 @@ class HardStrategy(DifficultyStrategy):
     def __init__(self):
         self.BIRD_HORIZONTAL_MOVEMENT = True
         self.RANDOM_LOG_PAIRS = True
-        self.CLOSING_LOGS = False
+        self.CLOSING_LOGS = True
         self.POWERUP_SPAWN = True
 
     def apply_settings(self) -> None:
